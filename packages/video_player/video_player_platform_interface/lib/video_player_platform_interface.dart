@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+/// WinTicket VideoPlayerPlatform
 /// The interface that implementations of video_player must implement.
 ///
 /// Platform implementations should extend this class rather than implement it as `video_player`
