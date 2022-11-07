@@ -8,6 +8,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_video_player.dart';
 
+/// WinTicket VideoPlayerPlatform
 /// The interface that implementations of video_player must implement.
 ///
 /// Platform implementations should extend this class rather than implement it as `video_player`
