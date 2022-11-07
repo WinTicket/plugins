@@ -10,6 +10,7 @@ import 'package:video_player_platform_interface/video_player_platform_interface.
 
 import 'messages.g.dart';
 
+/// WinTicket AVFoundationVideoPlayer
 /// An iOS implementation of [VideoPlayerPlatform] that uses the
 /// Pigeon-generated [VideoPlayerApi].
 class AVFoundationVideoPlayer extends VideoPlayerPlatform {
