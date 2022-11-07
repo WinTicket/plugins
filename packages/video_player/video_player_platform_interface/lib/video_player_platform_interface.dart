@@ -5,6 +5,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:video_player_platform_interface/method_channel_video_player.dart';
 
 /// WinTicket VideoPlayerPlatform
 /// The interface that implementations of video_player must implement.
@@ -20,7 +21,7 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static VideoPlayerPlatform _instance = _PlaceholderImplementation();
+  static VideoPlayerPlatform _instance = MethodChannelVideoPlayer();
 
   /// The instance of [VideoPlayerPlatform] to use.
   ///
@@ -104,8 +105,6 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('setMixWithOthers() has not been implemented.');
   }
 }
-
-class _PlaceholderImplementation extends VideoPlayerPlatform {}
 
 /// Description of the data source used to create an instance of
 /// the video player.
