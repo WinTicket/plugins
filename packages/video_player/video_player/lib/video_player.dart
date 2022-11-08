@@ -500,6 +500,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             return;
           }
           _updatePosition(newPosition);
+          value = value.copyWith(duration: await duration);
         },
       );
 
@@ -544,6 +545,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       return null;
     }
     return _videoPlayerPlatform.getPosition(_textureId);
+  }
+
+  /// The duration in the current video.
+  Future<Duration?> get duration async {
+    if (_isDisposed) {
+      return null;
+    }
+    return await _videoPlayerPlatform.getDuration(_textureId);
   }
 
   /// Sets the video's current timestamp to be at [moment]. The next

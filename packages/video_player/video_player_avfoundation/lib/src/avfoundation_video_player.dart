@@ -118,6 +118,17 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
     return Duration(milliseconds: response.position);
   }
 
+  late Duration _duration;
+
+  // TODO(batch): HLSのライブ視聴時のシーク可能な範囲はAVPlayerではdurationとは別で
+  // seekableTimeRangesがExoPlayerのdurationである。
+  // どのようにplatform間の誤差を吸収するかのベストプラクティスをFlutterに聞く
+  // 現状は常に同じdurationを返して既存と挙動が変わらないようにする
+  @override
+  Future<Duration> getDuration(int textureId) async {
+    return _duration;
+  }
+
   @override
   Stream<VideoEvent> videoEventsFor(int textureId) {
     return _eventChannelFor(textureId)
@@ -126,6 +137,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
       switch (map['event']) {
         case 'initialized':
+          _duration = Duration(milliseconds: map['duration'] as int);
           return VideoEvent(
             eventType: VideoEventType.initialized,
             duration: Duration(milliseconds: map['duration'] as int),
