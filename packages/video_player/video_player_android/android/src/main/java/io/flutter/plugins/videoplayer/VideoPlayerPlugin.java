@@ -14,6 +14,7 @@ import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
+import io.flutter.plugins.videoplayer.Messages.DurationMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
@@ -192,6 +193,17 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
             .setPosition(player.getPosition())
             .setTextureId(arg.getTextureId())
             .build();
+    player.sendBufferingUpdate();
+    return result;
+  }
+
+  public DurationMessage duration(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    DurationMessage result =
+            new DurationMessage.Builder()
+                .setDuration(player.getDuration())
+                .setTextureId(arg.getTextureId())
+                .build();
     player.sendBufferingUpdate();
     return result;
   }
