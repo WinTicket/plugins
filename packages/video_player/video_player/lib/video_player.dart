@@ -510,7 +510,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           }
           _updatePosition(newPosition);
           if (liveStream) {
-            value = value.copyWith(duration: await duration);
+            // これあったらうまくうごかない
+            // value = value.copyWith(duration: await duration);
           }
         },
       );
