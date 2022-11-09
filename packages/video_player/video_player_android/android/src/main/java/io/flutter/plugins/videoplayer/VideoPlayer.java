@@ -288,9 +288,6 @@ final class VideoPlayer {
   }
 
   long getDuration() {
-    if (exoPlayer.isCurrentMediaItemLive()) {
-        return exoPlayer.getDuration() - getRelativeStartPosition();
-    }
     return exoPlayer.getDuration();
   }
 
