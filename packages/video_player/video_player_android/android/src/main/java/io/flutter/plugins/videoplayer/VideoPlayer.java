@@ -20,6 +20,7 @@ import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.Player.Listener;
+import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.audio.AudioAttributes;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
@@ -284,7 +285,15 @@ final class VideoPlayer {
   }
 
   long getDuration() {
-    return exoPlayer.getDuration();
+      Timeline.Window window = new Timeline.Window();
+      exoPlayer.getCurrentTimeline().getWindow(exoPlayer.getCurrentMediaItemIndex(), window);
+      long windowDuration = window.getDurationMs();
+      System.out.println("==== Call VideoPlayer getDuration====");
+      System.out.println("ExoPlayer windowDuration" + windowDuration);
+      System.out.println("ExoPlayer duration" + exoPlayer.getDuration());
+      System.out.println("ExoPlayer currentPosition" + exoPlayer.getCurrentPosition());
+      System.out.println("ExoPlayer windowStartTimeMs" + window.windowStartTimeMs);
+      return exoPlayer.getDuration();
   }
 
   @SuppressWarnings("SuspiciousNameCombination")
