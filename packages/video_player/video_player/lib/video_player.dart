@@ -223,7 +223,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         dataSourceType = DataSourceType.asset,
         formatHint = null,
         httpHeaders = const <String, String>{},
-        liveStream = false,
         super(VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from obtained from
@@ -241,7 +240,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.httpHeaders = const <String, String>{},
-    this.liveStream = false,
   })  : _closedCaptionFileFuture = closedCaptionFile,
         dataSourceType = DataSourceType.network,
         package = null,
@@ -258,7 +256,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         package = null,
         formatHint = null,
         httpHeaders = const <String, String>{},
-        liveStream = false,
         super(VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from a contentUri.
@@ -275,7 +272,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         package = null,
         formatHint = null,
         httpHeaders = const <String, String>{},
-        liveStream = false,
         super(VideoPlayerValue(duration: Duration.zero));
 
   /// The URI to the video file. This will be in different formats depending on
@@ -300,10 +296,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   /// Only set for [asset] videos. The package that the asset was loaded from.
   final String? package;
-
-  /// Whether the data source is LiveStream.
-  /// Only for [VideoPlayerController.network].
-  final bool liveStream;
 
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
@@ -504,13 +496,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             return;
           }
           final Duration? newPosition = await position;
-          if (newPosition == null) {
+          final Duration? newDuration = await duration;
+          if (newPosition == null || newDuration == null) {
             return;
           }
           _updatePosition(newPosition);
-          if (liveStream) {
-            value = value.copyWith(duration: await duration);
-          }
+          value = value.copyWith(duration: newDuration);
         },
       );
 
@@ -521,6 +512,20 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     } else {
       _timer?.cancel();
       await _videoPlayerPlatform.pause(_textureId);
+
+      _timer = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (Timer timer) async {
+          if (_isDisposed) {
+            return;
+          }
+          final Duration? newDuration = await duration;
+          if (newDuration == null) {
+            return;
+          }
+          value = value.copyWith(duration: newDuration);
+        },
+      );
     }
   }
 
