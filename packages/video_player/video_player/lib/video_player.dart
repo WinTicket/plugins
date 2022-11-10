@@ -505,14 +505,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             return;
           }
           final Duration? newPosition = await position;
-          if (newPosition == null) {
+          final Duration? newDuration = await duration;
+
+          if (newPosition == null || newDuration == null) {
             return;
           }
-          _updatePosition(newPosition);
-          if (liveStream) {
-            // これあったらうまくうごかない
-            // value = value.copyWith(duration: await duration);
-          }
+          print(
+              '==== VideoPlayer ====\nposition: $newPosition\nduration: $newDuration');
+          _updatePosition(newPosition, newDuration);
         },
       );
 
@@ -582,7 +582,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       position = Duration.zero;
     }
     await _videoPlayerPlatform.seekTo(_textureId, position);
-    _updatePosition(position);
+    _updatePosition(position, value.duration);
   }
 
   /// Sets the audio volume of [this].
@@ -689,9 +689,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     value = value.copyWith(caption: _getCaptionAt(value.position));
   }
 
-  void _updatePosition(Duration position) {
+  void _updatePosition(Duration position, Duration duration) {
     value = value.copyWith(
       position: position,
+      duration: duration,
       caption: _getCaptionAt(position),
     );
   }
