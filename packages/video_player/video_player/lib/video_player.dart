@@ -510,8 +510,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           if (newPosition == null || newDuration == null) {
             return;
           }
-          print(
-              '==== VideoPlayer ====\nposition: $newPosition\nduration: $newDuration');
           _updatePosition(newPosition, newDuration);
         },
       );
@@ -522,6 +520,22 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       await _applyPlaybackSpeed();
     } else {
       _timer?.cancel();
+      if (liveStream) {
+        _timer = Timer.periodic(
+          const Duration(milliseconds: 500),
+          (Timer timer) async {
+            if (_isDisposed) {
+              return;
+            }
+            final Duration? newDuration = await duration;
+
+            if (newDuration == null) {
+              return;
+            }
+            value = value.copyWith(duration: newDuration);
+          },
+        );
+      }
       await _videoPlayerPlatform.pause(_textureId);
     }
   }
