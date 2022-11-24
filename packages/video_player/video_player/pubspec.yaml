@@ -31,8 +31,3 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-# TODO(batch): デバッグ用なのでマージしない
-#dependency_overrides:
-#  video_player_platform_interface:
-#    path: ../video_player_platform_interface
