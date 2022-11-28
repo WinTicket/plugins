@@ -483,6 +483,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   }
 
   void _applyUpdateDurationPeriodic() {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
     // Cancel previous timer.
     _timerForDuration?.cancel();
 
