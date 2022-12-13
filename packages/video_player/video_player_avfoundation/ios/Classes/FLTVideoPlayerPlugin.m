@@ -374,10 +374,19 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (int64_t)duration {
-  // Note: https://openradar.appspot.com/radar?id=4968600712511488
-  // `[AVPlayerItem duration]` can be `kCMTimeIndefinite`,
-  // use `[[AVPlayerItem asset] duration]` instead.
-  return FLTCMTimeToMillis([[[_player currentItem] asset] duration]);
+  // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
+  // iOSでは
+  // - ライブ配信: seekableTimeRanges
+  // - mp4の動画: duration
+  // を利用する必要がある。ライブ配信のdurationは大きなマイナスな値になるのでそれで条件分岐する
+  NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
+  if (seekableRange) {
+     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+     return FLTCMTimeToMillis(seekableDuration.duration);
+  }
+  else {
+     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+  }
 }
 
 - (void)seekTo:(int)location {
@@ -609,6 +618,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   FLTPositionMessage *result = [FLTPositionMessage makeWithTextureId:input.textureId
                                                             position:@([player position])];
+  return result;
+}
+
+- (FLTDurationMessage *)duration:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTDurationMessage *result = [FLTDurationMessage makeWithTextureId:input.textureId
+                                                            duration:@([player duration])];
   return result;
 }
 
