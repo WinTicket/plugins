@@ -103,10 +103,12 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> seekTo(int textureId, Duration position) {
+  Future<void> seekTo(int textureId, Duration position) async {
+    final StartMessage startResponse =
+        await _api.start(TextureMessage(textureId: textureId));
     return _api.seekTo(PositionMessage(
       textureId: textureId,
-      position: position.inMilliseconds,
+      position: position.inMilliseconds + Duration(milliseconds: startResponse.start).inMilliseconds,
     ));
   }
 
@@ -114,14 +116,24 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<Duration> getPosition(int textureId) async {
     final PositionMessage response =
         await _api.position(TextureMessage(textureId: textureId));
-    return Duration(milliseconds: response.position);
+    final StartMessage startResponse =
+    await _api.start(TextureMessage(textureId: textureId));
+    print('-------------------------------');
+    print('position: ${response.position}');
+    print('start: ${startResponse.start}');
+    print('real-position: ${response.position - startResponse.start}');
+    print('-------------------------------');
+    return Duration(milliseconds: response.position - startResponse.start);
   }
 
   @override
   Future<Duration> getDuration(int textureId) async {
-    final DurationMessage response =
+    final DurationMessage durationResponse =
         await _api.duration(TextureMessage(textureId: textureId));
-    return Duration(milliseconds: response.duration);
+    print('-------------------------------');
+    print('duration: ${durationResponse.duration}');
+    print('-------------------------------');
+    return Duration(milliseconds: durationResponse.duration);
   }
 
   @override

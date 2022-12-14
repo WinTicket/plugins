@@ -58,6 +58,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 + (FLTDurationMessage *)fromMap:(NSDictionary *)dict;
 - (NSDictionary *)toMap;
 @end
+@interface FLTStartMessage ()
++ (FLTStartMessage *)fromMap:(NSDictionary *)dict;
+- (NSDictionary *)toMap;
+@end
 @interface FLTCreateMessage ()
 + (FLTCreateMessage *)fromMap:(NSDictionary *)dict;
 - (NSDictionary *)toMap;
@@ -189,6 +193,27 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 }
 @end
 
+@implementation FLTStartMessage
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    start:(NSNumber *)start {
+  FLTStartMessage* pigeonResult = [[FLTStartMessage alloc] init];
+  pigeonResult.textureId = textureId;
+  pigeonResult.start = start;
+  return pigeonResult;
+}
++ (FLTStartMessage *)fromMap:(NSDictionary *)dict {
+  FLTStartMessage *pigeonResult = [[FLTStartMessage alloc] init];
+  pigeonResult.textureId = GetNullableObject(dict, @"textureId");
+  NSAssert(pigeonResult.textureId != nil, @"");
+  pigeonResult.start = GetNullableObject(dict, @"start");
+  NSAssert(pigeonResult.start != nil, @"");
+  return pigeonResult;
+}
+- (NSDictionary *)toMap {
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.textureId ? self.textureId : [NSNull null]), @"textureId", (self.start ? self.start : [NSNull null]), @"start", nil];
+}
+@end
+
 @implementation FLTCreateMessage
 + (instancetype)makeWithAsset:(nullable NSString *)asset
     uri:(nullable NSString *)uri
@@ -260,9 +285,12 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
       return [FLTPositionMessage fromMap:[self readValue]];
     
     case 134:     
-      return [FLTTextureMessage fromMap:[self readValue]];
+      return [FLTStartMessage fromMap:[self readValue]];
     
     case 135:     
+      return [FLTTextureMessage fromMap:[self readValue]];
+    
+    case 136:     
       return [FLTVolumeMessage fromMap:[self readValue]];
     
     default:    
@@ -301,12 +329,16 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
     [self writeByte:133];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTTextureMessage class]]) {
+  if ([value isKindOfClass:[FLTStartMessage class]]) {
     [self writeByte:134];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTVolumeMessage class]]) {
+  if ([value isKindOfClass:[FLTTextureMessage class]]) {
     [self writeByte:135];
+    [self writeValue:[value toMap]];
+  } else 
+  if ([value isKindOfClass:[FLTVolumeMessage class]]) {
+    [self writeByte:136];
     [self writeValue:[value toMap]];
   } else 
 {
@@ -509,6 +541,26 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
         FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
         FlutterError *error;
         FLTDurationMessage *output = [api duration:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.start"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(start:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(start:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FLTStartMessage *output = [api start:arg_msg error:&error];
         callback(wrapResult(output, error));
       }];
     }

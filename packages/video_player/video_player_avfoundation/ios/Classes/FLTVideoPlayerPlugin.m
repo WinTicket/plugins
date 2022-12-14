@@ -389,6 +389,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
+- (int64_t)start {
+  NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
+  if (seekableRange) {
+     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+     return FLTCMTimeToMillis(seekableDuration.start);
+  }
+  else {
+     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+  }
+}
+
 - (void)seekTo:(int)location {
   // TODO(stuartmorgan): Update this to use completionHandler: to only return
   // once the seek operation is complete once the Pigeon API is updated to a
@@ -625,6 +636,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   FLTDurationMessage *result = [FLTDurationMessage makeWithTextureId:input.textureId
                                                             duration:@([player duration])];
+  return result;
+}
+
+- (FLTStartMessage *)start:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTStartMessage *result = [FLTStartMessage makeWithTextureId:input.textureId
+                                                            start:@([player start])];
   return result;
 }
 

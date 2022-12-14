@@ -157,6 +157,31 @@ class DurationMessage {
   }
 }
 
+class StartMessage {
+  StartMessage({
+    required this.textureId,
+    required this.start,
+  });
+
+  int textureId;
+  int start;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['start'] = start;
+    return pigeonMap;
+  }
+
+  static StartMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return StartMessage(
+      textureId: pigeonMap['textureId']! as int,
+      start: pigeonMap['start']! as int,
+    );
+  }
+}
+
 class CreateMessage {
   CreateMessage({
     this.asset,
@@ -243,12 +268,16 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else 
-    if (value is TextureMessage) {
+    if (value is StartMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else 
-    if (value is VolumeMessage) {
+    if (value is TextureMessage) {
       buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    } else 
+    if (value is VolumeMessage) {
+      buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else 
 {
@@ -277,9 +306,12 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
         return PositionMessage.decode(readValue(buffer)!);
       
       case 134:       
-        return TextureMessage.decode(readValue(buffer)!);
+        return StartMessage.decode(readValue(buffer)!);
       
       case 135:       
+        return TextureMessage.decode(readValue(buffer)!);
+      
+      case 136:       
         return VolumeMessage.decode(readValue(buffer)!);
       
       default:      
@@ -509,6 +541,33 @@ class AVFoundationVideoPlayerApi {
       );
     } else {
       return (replyMap['result'] as DurationMessage?)!;
+    }
+  }
+
+  Future<StartMessage> start(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.start', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else if (replyMap['result'] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyMap['result'] as StartMessage?)!;
     }
   }
 
