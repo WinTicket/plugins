@@ -400,13 +400,14 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
-- (void)seekTo:(int)location {
+- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler  {
   // TODO(stuartmorgan): Update this to use completionHandler: to only return
   // once the seek operation is complete once the Pigeon API is updated to a
   // version that handles async calls.
   [_player seekToTime:CMTimeMake(location, 1000)
       toleranceBefore:kCMTimeZero
-       toleranceAfter:kCMTimeZero];
+       toleranceAfter:kCMTimeZero
+        completionHandler:completionHandler];
 }
 
 - (void)setIsLooping:(BOOL)isLooping {
@@ -646,10 +647,14 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return result;
 }
 
-- (void)seekTo:(FLTPositionMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player seekTo:input.position.intValue];
-  [self.registry textureFrameAvailable:input.textureId.intValue];
+- (void)seekTo:(FLTPositionMessage *)msg completion:(void(^)(FlutterError *_Nullable))completion {
+  FLTVideoPlayer *player = self.playersByTextureId[msg.textureId];
+  [player seekTo:msg.position.intValue completionHandler:^(BOOL isFinished) {
+    if (completion) {
+      completion(nil);
+    }
+  }];
+  [self.registry textureFrameAvailable:msg.textureId.intValue];
 }
 
 - (void)pause:(FLTTextureMessage *)input error:(FlutterError **)error {

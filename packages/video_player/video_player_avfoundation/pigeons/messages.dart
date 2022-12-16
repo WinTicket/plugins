@@ -92,6 +92,7 @@ abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('start:')
   StartMessage start(TextureMessage msg);
   @ObjCSelector('seekTo:')
+  @async
   void seekTo(PositionMessage msg);
   @ObjCSelector('pause:')
   void pause(TextureMessage msg);
