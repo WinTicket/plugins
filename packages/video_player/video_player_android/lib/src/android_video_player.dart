@@ -114,9 +114,6 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   Future<Duration> getPosition(int textureId) async {
     final PositionMessage response =
         await _api.position(TextureMessage(textureId: textureId));
-    print('-------------------------------');
-    print('position: ${response.position}');
-    print('-------------------------------');
     return Duration(milliseconds: response.position);
   }
 
@@ -124,9 +121,6 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   Future<Duration> getDuration(int textureId) async {
     final DurationMessage response =
         await _api.duration(TextureMessage(textureId: textureId));
-    print('-------------------------------');
-    print('duration: ${response.duration}');
-    print('-------------------------------');
     return Duration(milliseconds: response.duration);
   }
 

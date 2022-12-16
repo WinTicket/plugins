@@ -106,9 +106,10 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<void> seekTo(int textureId, Duration position) async {
     final StartMessage startResponse =
         await _api.start(TextureMessage(textureId: textureId));
+    final startDuration = Duration(milliseconds: startResponse.start);
     return _api.seekTo(PositionMessage(
       textureId: textureId,
-      position: position.inMilliseconds + Duration(milliseconds: startResponse.start).inMilliseconds,
+      position: position.inMilliseconds + startDuration.inMilliseconds,
     ));
   }
 
@@ -117,12 +118,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
     final PositionMessage response =
         await _api.position(TextureMessage(textureId: textureId));
     final StartMessage startResponse =
-    await _api.start(TextureMessage(textureId: textureId));
-    print('-------------------------------');
-    print('position: ${response.position}');
-    print('start: ${startResponse.start}');
-    print('real-position: ${response.position - startResponse.start}');
-    print('-------------------------------');
+        await _api.start(TextureMessage(textureId: textureId));
     return Duration(milliseconds: response.position - startResponse.start);
   }
 
@@ -130,9 +126,6 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<Duration> getDuration(int textureId) async {
     final DurationMessage durationResponse =
         await _api.duration(TextureMessage(textureId: textureId));
-    print('-------------------------------');
-    print('duration: ${durationResponse.duration}');
-    print('-------------------------------');
     return Duration(milliseconds: durationResponse.duration);
   }
 
