@@ -246,7 +246,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       for (NSValue *rangeValue in [object loadedTimeRanges]) {
         CMTimeRange range = [rangeValue CMTimeRangeValue];
         int64_t start = FLTCMTimeToMillis(range.start);
-        [values addObject:@[ @(start), @(start + FLTCMTimeToMillis(range.duration)) ]];
+        int64_t currentTime = FLTCMTimeToMillis([_player currentTime]);
+        [values addObject:@[ @(start - currentTime), @(start + FLTCMTimeToMillis(range.duration) - currentTime) ]];
       }
       _eventSink(@{@"event" : @"bufferingUpdate", @"values" : values});
     }
