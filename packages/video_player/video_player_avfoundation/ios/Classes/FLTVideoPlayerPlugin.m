@@ -187,6 +187,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
+  // Flutter iOSだとloadedTimeRangesを取得しすぎてしまう
+  // なのでAndroidやSwiftと合わせるために50secにする
   item.preferredForwardBufferDuration = 50.0;
   return [self initWithPlayerItem:item frameUpdater:frameUpdater];
 }
