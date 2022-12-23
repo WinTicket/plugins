@@ -13,6 +13,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
+import io.flutter.plugins.videoplayer.Messages.BufferMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
 import io.flutter.plugins.videoplayer.Messages.DurationMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
