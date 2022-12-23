@@ -81,16 +81,20 @@ final class VideoPlayer {
     this.textureEntry = textureEntry;
     this.options = options;
 
-    DefaultLoadControl.Builder defaultLoadControl = new DefaultLoadControl.Builder();
-    defaultLoadControl.setBufferDurationsMs(
-        options.buffer.minBufferMs,
-        options.buffer.maxBufferMs,
-        options.buffer.bufferForPlaybackMs,
-        options.buffer.bufferForPlaybackAfterRebufferMs
-    );
+    ExoPlayer.Builder exoPlayerBuilder = new ExoPlayer.Builder(context);
+    if (options != null) {
+      DefaultLoadControl.Builder defaultLoadControlBuilder = new DefaultLoadControl.Builder();
+      defaultLoadControlBuilder.setBufferDurationsMs(
+              options.buffer.minBufferMs,
+              options.buffer.maxBufferMs,
+              options.buffer.bufferForPlaybackMs,
+              options.buffer.bufferForPlaybackAfterRebufferMs
+      );
+      exoPlayerBuilder.setLoadControl(defaultLoadControlBuilder.build());
+    }
 
-    ExoPlayer exoPlayer = new ExoPlayer.Builder(context)
-            .setLoadControl(defaultLoadControl.build()).build();
+    ExoPlayer exoPlayer = exoPlayerBuilder.build();
+
 
     Uri uri = Uri.parse(dataSource);
     DataSource.Factory dataSourceFactory;
