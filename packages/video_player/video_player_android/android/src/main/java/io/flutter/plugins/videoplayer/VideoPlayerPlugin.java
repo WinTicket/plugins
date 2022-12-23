@@ -223,6 +223,16 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     options.mixWithOthers = arg.getMixWithOthers();
   }
 
+  @Override
+  public void setBuffer(BufferMessage arg) {
+    options.buffer = new VideoPlayerBuffer(
+      arg.getMinBufferMs(),
+      arg.getMaxBufferMs(),
+      arg.getBufferForPlaybackMs(),
+      arg.getBufferForPlaybackAfterRebufferMs()
+    );
+  }
+
   private interface KeyForAssetFn {
     String get(String asset);
   }

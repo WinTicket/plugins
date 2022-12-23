@@ -83,10 +83,10 @@ final class VideoPlayer {
 
     DefaultLoadControl.Builder defaultLoadControl = new DefaultLoadControl.Builder();
     defaultLoadControl.setBufferDurationsMs(
-            5000,
-            5000,
-            2500,
-            5000
+        options.buffer.minBufferMs,
+        options.buffer.maxBufferMs,
+        options.buffer.bufferForPlaybackMs,
+        options.buffer.bufferForPlaybackAfterRebufferMs
     );
 
     ExoPlayer exoPlayer = new ExoPlayer.Builder(context)
