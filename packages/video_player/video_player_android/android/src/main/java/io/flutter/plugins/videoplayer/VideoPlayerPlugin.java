@@ -23,6 +23,10 @@ import io.flutter.plugins.videoplayer.Messages.PositionMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
 import io.flutter.plugins.videoplayer.Messages.VolumeMessage;
 import io.flutter.view.TextureRegistry;
+import static java.lang.Math.toIntExact;
+
+import com.google.android.exoplayer2.DefaultLoadControl;
+
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -226,11 +230,20 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
 
   @Override
   public void setBuffer(BufferMessage arg) {
+    if (arg == null) return;
     VideoPlayerBuffer buffer = new VideoPlayerBuffer();
-    buffer.minBufferMs = arg.getMinBufferMs();
-    buffer.maxBufferMs = arg.getMaxBufferMs();
-    buffer.bufferForPlaybackMs = arg.getBufferForPlaybackMs();
-    buffer.bufferForPlaybackAfterRebufferMs = arg.getBufferForPlaybackAfterRebufferMs();
+    buffer.minBufferMs = (arg.getMinBufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
+        : toIntExact(arg.getMinBufferMs());
+    buffer.maxBufferMs = (arg.getMaxBufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+        : toIntExact(arg.getMaxBufferMs());
+    buffer.bufferForPlaybackMs = (arg.getBufferForPlaybackMs() == null)
+        ? DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS
+        : toIntExact(arg.getBufferForPlaybackMs());
+    buffer.bufferForPlaybackAfterRebufferMs = (arg.getBufferForPlaybackAfterRebufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+        : toIntExact(arg.getBufferForPlaybackAfterRebufferMs());
     options.buffer = buffer;
   }
 
