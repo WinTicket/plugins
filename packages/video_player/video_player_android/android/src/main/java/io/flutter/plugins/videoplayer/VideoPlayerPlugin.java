@@ -225,12 +225,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
 
   @Override
   public void setBuffer(BufferMessage arg) {
-    options.buffer = new VideoPlayerBuffer(
-      arg.getMinBufferMs(),
-      arg.getMaxBufferMs(),
-      arg.getBufferForPlaybackMs(),
-      arg.getBufferForPlaybackAfterRebufferMs()
-    );
+    VideoPlayerBuffer buffer = new VideoPlayerBuffer();
+    buffer.minBufferMs = arg.getMinBufferMs();
+    buffer.maxBufferMs = arg.getMaxBufferMs();
+    buffer.bufferForPlaybackMs = arg.getBufferForPlaybackMs();
+    buffer.bufferForPlaybackAfterRebufferMs = arg.getBufferForPlaybackAfterRebufferMs();
+    options.buffer = buffer;
   }
 
   private interface KeyForAssetFn {
