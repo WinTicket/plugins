@@ -175,6 +175,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
         .setMixWithOthers(MixWithOthersMessage(mixWithOthers: mixWithOthers));
   }
 
+  @override
+  Future<void> setBuffer(Buffer buffer) {
+    // TODO(batch): implement setBuffer
+    // ignore: always_specify_types
+    return Future.value();
+  }
+
   EventChannel _eventChannelFor(int textureId) {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }
