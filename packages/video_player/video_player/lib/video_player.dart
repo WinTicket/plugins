@@ -360,6 +360,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           .setMixWithOthers(videoPlayerOptions!.mixWithOthers);
     }
 
+    if (videoPlayerOptions?.buffer != null) {
+      await _videoPlayerPlatform.setBuffer(videoPlayerOptions!.buffer!);
+    }
+
     _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ??
         kUninitializedTextureId;
     _creatingCompleter!.complete(null);

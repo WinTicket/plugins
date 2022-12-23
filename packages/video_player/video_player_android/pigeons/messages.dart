@@ -62,6 +62,13 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class BufferMessage {
+  int? minBufferMs;
+  int? maxBufferMs;
+  int? bufferForPlaybackMs;
+  int? bufferForPlaybackAfterRebufferMs;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -76,4 +83,5 @@ abstract class AndroidVideoPlayerApi {
   void seekTo(PositionMessage msg);
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
+  void setBuffer(BufferMessage msg);
 }
