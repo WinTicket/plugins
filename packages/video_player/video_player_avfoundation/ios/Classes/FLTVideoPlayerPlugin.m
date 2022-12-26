@@ -250,6 +250,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
         CMTimeRange range = [rangeValue CMTimeRangeValue];
         int64_t start = FLTCMTimeToMillis(range.start);
         int64_t currentTime = FLTCMTimeToMillis([_player currentTime]);
+        int64_t duration = [self duration];
         // Androidを合わせる形で対応
         // iOSはライブ配信を開始した時間を元に計算してる
         // positionに対してbufferが行われている範囲を追加する
