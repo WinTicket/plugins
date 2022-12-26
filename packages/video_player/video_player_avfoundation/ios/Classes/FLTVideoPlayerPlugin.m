@@ -249,13 +249,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       for (NSValue *rangeValue in [object loadedTimeRanges]) {
         CMTimeRange range = [rangeValue CMTimeRangeValue];
         int64_t start = FLTCMTimeToMillis(range.start);
-        int64_t position = [self position];
         int64_t durationStartAt = [self durationStartAt];
         // Androidを合わせる形で対応
         // iOSはライブ配信を開始した時間を元に計算してる
         // positionに対してbufferが行われている範囲を追加する
         // See Also: https://github.com/WinTicket/ios/blob/f81dc5e5c77cfb2e102277b1ebf5f3395ceda004/WinTicket/Sources/Components/Video/VideoState.swift#L313
-        [values addObject:@[ @(start + position - durationStartAt), @(start + FLTCMTimeToMillis(range.duration) + position - durationStartAt) ]];
+        [values addObject:@[ @(start - durationStartAt), @(start + FLTCMTimeToMillis(range.duration) - durationStartAt) ]];
       }
       _eventSink(@{@"event" : @"bufferingUpdate", @"values" : values});
     }
