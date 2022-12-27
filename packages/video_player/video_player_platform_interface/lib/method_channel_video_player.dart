@@ -150,9 +150,10 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> setBuffer(Buffer buffer) {
+  Future<void> setBuffer(int textureId, Buffer buffer) {
     return _api.setBuffer(
       BufferMessage()
+        ..textureId = textureId
         ..minBufferMs = buffer.minBufferMs
         ..maxBufferMs = buffer.maxBufferMs
         ..bufferForPlaybackMs = buffer.bufferForPlaybackMs

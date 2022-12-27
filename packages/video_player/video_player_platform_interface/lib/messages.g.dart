@@ -144,6 +144,7 @@ class MixWithOthersMessage {
 }
 
 class BufferMessage {
+  int? textureId;
   int? minBufferMs;
   int? maxBufferMs;
   int? bufferForPlaybackMs;
@@ -151,6 +152,7 @@ class BufferMessage {
 
   Object encode() {
     final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
     pigeonMap['minBufferMs'] = minBufferMs;
     pigeonMap['maxBufferMs'] = maxBufferMs;
     pigeonMap['bufferForPlaybackMs'] = bufferForPlaybackMs;
@@ -161,6 +163,7 @@ class BufferMessage {
   static BufferMessage decode(Object message) {
     final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
     return BufferMessage()
+      ..textureId = pigeonMap['textureId'] as int?
       ..minBufferMs = pigeonMap['minBufferMs'] as int?
       ..maxBufferMs = pigeonMap['maxBufferMs'] as int?
       ..bufferForPlaybackMs = pigeonMap['bufferForPlaybackMs'] as int?

@@ -361,12 +361,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           .setMixWithOthers(videoPlayerOptions!.mixWithOthers);
     }
 
-    if (videoPlayerOptions?.buffer != null) {
-      await _videoPlayerPlatform.setBuffer(videoPlayerOptions!.buffer!);
-    }
-
     _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ??
         kUninitializedTextureId;
+
+    if (videoPlayerOptions?.buffer != null) {
+      await _videoPlayerPlatform.setBuffer(_textureId, videoPlayerOptions!.buffer!);
+    }
+
     _creatingCompleter!.complete(null);
     final Completer<void> initializingCompleter = Completer<void>();
 

@@ -172,7 +172,7 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> setBuffer(Buffer buffer) {
+  Future<void> setBuffer(int textureId, Buffer buffer) {
     return _api.setBuffer(
       BufferMessage(
         minBufferMs: buffer.minBufferMs,
