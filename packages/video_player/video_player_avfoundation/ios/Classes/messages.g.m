@@ -70,6 +70,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 + (FLTMixWithOthersMessage *)fromMap:(NSDictionary *)dict;
 - (NSDictionary *)toMap;
 @end
+@interface FLTBufferMessage ()
++ (FLTBufferMessage *)fromMap:(NSDictionary *)dict;
+- (NSDictionary *)toMap;
+@end
 
 @implementation FLTTextureMessage
 + (instancetype)makeWithTextureId:(NSNumber *)textureId {
@@ -260,6 +264,23 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 }
 @end
 
+@implementation FLTBufferMessage
++ (instancetype)makeWithSecond:(NSNumber *)second {
+  FLTBufferMessage* pigeonResult = [[FLTBufferMessage alloc] init];
+  pigeonResult.second = second;
+  return pigeonResult;
+}
++ (FLTBufferMessage *)fromMap:(NSDictionary *)dict {
+  FLTBufferMessage *pigeonResult = [[FLTBufferMessage alloc] init];
+  pigeonResult.second = GetNullableObject(dict, @"second");
+  NSAssert(pigeonResult.second != nil, @"");
+  return pigeonResult;
+}
+- (NSDictionary *)toMap {
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.second ? self.second : [NSNull null]), @"second", nil];
+}
+@end
+
 @interface FLTAVFoundationVideoPlayerApiCodecReader : FlutterStandardReader
 @end
 @implementation FLTAVFoundationVideoPlayerApiCodecReader
@@ -267,30 +288,33 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 {
   switch (type) {
     case 128:     
-      return [FLTCreateMessage fromMap:[self readValue]];
+      return [FLTBufferMessage fromMap:[self readValue]];
     
     case 129:     
-      return [FLTDurationMessage fromMap:[self readValue]];
+      return [FLTCreateMessage fromMap:[self readValue]];
     
     case 130:     
-      return [FLTLoopingMessage fromMap:[self readValue]];
+      return [FLTDurationMessage fromMap:[self readValue]];
     
     case 131:     
-      return [FLTMixWithOthersMessage fromMap:[self readValue]];
+      return [FLTLoopingMessage fromMap:[self readValue]];
     
     case 132:     
-      return [FLTPlaybackSpeedMessage fromMap:[self readValue]];
+      return [FLTMixWithOthersMessage fromMap:[self readValue]];
     
     case 133:     
-      return [FLTPositionMessage fromMap:[self readValue]];
+      return [FLTPlaybackSpeedMessage fromMap:[self readValue]];
     
     case 134:     
-      return [FLTStartMessage fromMap:[self readValue]];
+      return [FLTPositionMessage fromMap:[self readValue]];
     
     case 135:     
-      return [FLTTextureMessage fromMap:[self readValue]];
+      return [FLTStartMessage fromMap:[self readValue]];
     
     case 136:     
+      return [FLTTextureMessage fromMap:[self readValue]];
+    
+    case 137:     
       return [FLTVolumeMessage fromMap:[self readValue]];
     
     default:    
@@ -305,40 +329,44 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 @implementation FLTAVFoundationVideoPlayerApiCodecWriter
 - (void)writeValue:(id)value 
 {
-  if ([value isKindOfClass:[FLTCreateMessage class]]) {
+  if ([value isKindOfClass:[FLTBufferMessage class]]) {
     [self writeByte:128];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTDurationMessage class]]) {
+  if ([value isKindOfClass:[FLTCreateMessage class]]) {
     [self writeByte:129];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTLoopingMessage class]]) {
+  if ([value isKindOfClass:[FLTDurationMessage class]]) {
     [self writeByte:130];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTMixWithOthersMessage class]]) {
+  if ([value isKindOfClass:[FLTLoopingMessage class]]) {
     [self writeByte:131];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTPlaybackSpeedMessage class]]) {
+  if ([value isKindOfClass:[FLTMixWithOthersMessage class]]) {
     [self writeByte:132];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTPositionMessage class]]) {
+  if ([value isKindOfClass:[FLTPlaybackSpeedMessage class]]) {
     [self writeByte:133];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTStartMessage class]]) {
+  if ([value isKindOfClass:[FLTPositionMessage class]]) {
     [self writeByte:134];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTTextureMessage class]]) {
+  if ([value isKindOfClass:[FLTStartMessage class]]) {
     [self writeByte:135];
     [self writeValue:[value toMap]];
   } else 
-  if ([value isKindOfClass:[FLTVolumeMessage class]]) {
+  if ([value isKindOfClass:[FLTTextureMessage class]]) {
     [self writeByte:136];
+    [self writeValue:[value toMap]];
+  } else 
+  if ([value isKindOfClass:[FLTVolumeMessage class]]) {
+    [self writeByte:137];
     [self writeValue:[value toMap]];
   } else 
 {
@@ -621,6 +649,26 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
         FLTMixWithOthersMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
         FlutterError *error;
         [api setMixWithOthers:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.setBuffer"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setBuffer:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setBuffer:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTBufferMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api setBuffer:arg_msg error:&error];
         callback(wrapResult(nil, error));
       }];
     }

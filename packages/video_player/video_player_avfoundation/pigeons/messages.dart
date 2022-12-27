@@ -69,6 +69,11 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class BufferMessage {
+  BufferMessage(this.second);
+  int second;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
@@ -98,4 +103,6 @@ abstract class AVFoundationVideoPlayerApi {
   void pause(TextureMessage msg);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(MixWithOthersMessage msg);
+  @ObjCSelector('setBuffer:')
+  void setBuffer(BufferMessage msg);
 }
