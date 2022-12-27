@@ -202,6 +202,9 @@ NS_INLINE UIViewController *rootViewController() {
   }
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
+  // Flutter iOSだとloadedTimeRangesを取得しすぎてしまう
+  // なのでAndroidやSwiftと合わせるために50secにする
+  item.preferredForwardBufferDuration = 50.0;
   return [self initWithPlayerItem:item frameUpdater:frameUpdater];
 }
 
@@ -269,7 +272,12 @@ NS_INLINE UIViewController *rootViewController() {
       for (NSValue *rangeValue in [object loadedTimeRanges]) {
         CMTimeRange range = [rangeValue CMTimeRangeValue];
         int64_t start = FLTCMTimeToMillis(range.start);
-        [values addObject:@[ @(start), @(start + FLTCMTimeToMillis(range.duration)) ]];
+        int64_t durationStartAt = [self durationStartAt];
+        // Androidを合わせる形で対応
+        // iOSはライブ配信を開始した時間を元に計算してる
+        // positionに対してbufferが行われている範囲を追加する
+        // See Also: https://github.com/WinTicket/ios/blob/f81dc5e5c77cfb2e102277b1ebf5f3395ceda004/WinTicket/Sources/Components/Video/VideoState.swift#L313
+        [values addObject:@[ @(start - durationStartAt), @(start + FLTCMTimeToMillis(range.duration) - durationStartAt) ]];
       }
       _eventSink(@{@"event" : @"bufferingUpdate", @"values" : values});
     }
@@ -412,7 +420,7 @@ NS_INLINE UIViewController *rootViewController() {
   }
 }
 
-- (int64_t)start {
+- (int64_t)durationStartAt {
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
      CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
@@ -667,7 +675,7 @@ NS_INLINE UIViewController *rootViewController() {
 - (FLTStartMessage *)start:(FLTTextureMessage *)input error:(FlutterError **)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   FLTStartMessage *result = [FLTStartMessage makeWithTextureId:input.textureId
-                                                            start:@([player start])];
+                                                            start:@([player durationStartAt])];
   return result;
 }
 
