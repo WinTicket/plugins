@@ -43,6 +43,18 @@ class PositionMessage {
   int position;
 }
 
+class DurationMessage {
+  DurationMessage(this.textureId, this.duration);
+  int textureId;
+  int duration;
+}
+
+class StartMessage {
+  StartMessage(this.textureId, this.duration);
+  int textureId;
+  int start;
+}
+
 class CreateMessage {
   CreateMessage({required this.httpHeaders});
   String? asset;
@@ -75,7 +87,12 @@ abstract class AVFoundationVideoPlayerApi {
   void play(TextureMessage msg);
   @ObjCSelector('position:')
   PositionMessage position(TextureMessage msg);
+  @ObjCSelector('duration:')
+  DurationMessage duration(TextureMessage msg);
+  @ObjCSelector('start:')
+  StartMessage start(TextureMessage msg);
   @ObjCSelector('seekTo:')
+  @async
   void seekTo(PositionMessage msg);
   @ObjCSelector('pause:')
   void pause(TextureMessage msg);
