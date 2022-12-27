@@ -386,7 +386,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   // iOSでは
   // - ライブ配信: seekableTimeRanges
   // - mp4の動画: duration
-  // を利用する必要がある。ライブ配信のdurationは大きなマイナスな値になるのでそれで条件分岐する
+  // を利用する必要がある。seekableTimeRangesが有無で条件分岐する
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
      CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
