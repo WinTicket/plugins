@@ -187,9 +187,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
-  // Flutter iOSだとloadedTimeRangesを取得しすぎてしまう
-  // なのでAndroidやSwiftと合わせるために50secにする
-  item.preferredForwardBufferDuration = 50.0;
   return [self initWithPlayerItem:item frameUpdater:frameUpdater];
 }
 
@@ -686,9 +683,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
-- (void)setBuffer:(FLTBufferMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error {
+- (void)setBuffer:(FLTBufferMessage *)input error:(FlutterError *_Nullable *_Nonnull)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player setBuffer:msg.second.doubleValue];
+  [player setBuffer:input.second.doubleValue];
 }
 
 @end

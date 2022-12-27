@@ -265,19 +265,23 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 @end
 
 @implementation FLTBufferMessage
-+ (instancetype)makeWithSecond:(NSNumber *)second {
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    second:(NSNumber *)second {
   FLTBufferMessage* pigeonResult = [[FLTBufferMessage alloc] init];
+  pigeonResult.textureId = textureId;
   pigeonResult.second = second;
   return pigeonResult;
 }
 + (FLTBufferMessage *)fromMap:(NSDictionary *)dict {
   FLTBufferMessage *pigeonResult = [[FLTBufferMessage alloc] init];
+  pigeonResult.textureId = GetNullableObject(dict, @"textureId");
+  NSAssert(pigeonResult.textureId != nil, @"");
   pigeonResult.second = GetNullableObject(dict, @"second");
   NSAssert(pigeonResult.second != nil, @"");
   return pigeonResult;
 }
 - (NSDictionary *)toMap {
-  return [NSDictionary dictionaryWithObjectsAndKeys:(self.second ? self.second : [NSNull null]), @"second", nil];
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.textureId ? self.textureId : [NSNull null]), @"textureId", (self.second ? self.second : [NSNull null]), @"second", nil];
 }
 @end
 

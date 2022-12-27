@@ -108,7 +108,9 @@ NS_ASSUME_NONNULL_BEGIN
 @interface FLTBufferMessage : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
 - (instancetype)init NS_UNAVAILABLE;
-+ (instancetype)makeWithSecond:(NSNumber *)second;
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    second:(NSNumber *)second;
+@property(nonatomic, strong) NSNumber * textureId;
 @property(nonatomic, strong) NSNumber * second;
 @end
 

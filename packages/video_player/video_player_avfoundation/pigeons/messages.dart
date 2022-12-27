@@ -70,7 +70,8 @@ class MixWithOthersMessage {
 }
 
 class BufferMessage {
-  BufferMessage(this.second);
+  BufferMessage(this.textureId, this.second);
+  int textureId;
   int second;
 }
 

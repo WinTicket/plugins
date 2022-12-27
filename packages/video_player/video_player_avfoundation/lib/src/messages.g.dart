@@ -242,13 +242,16 @@ class MixWithOthersMessage {
 
 class BufferMessage {
   BufferMessage({
+    required this.textureId,
     required this.second,
   });
 
+  int textureId;
   int second;
 
   Object encode() {
     final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
     pigeonMap['second'] = second;
     return pigeonMap;
   }
@@ -256,6 +259,7 @@ class BufferMessage {
   static BufferMessage decode(Object message) {
     final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
     return BufferMessage(
+      textureId: pigeonMap['textureId']! as int,
       second: pigeonMap['second']! as int,
     );
   }
