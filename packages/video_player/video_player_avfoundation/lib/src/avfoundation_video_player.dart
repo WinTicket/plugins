@@ -103,10 +103,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> seekTo(int textureId, Duration position) {
+  Future<void> seekTo(int textureId, Duration position) async {
+    final StartMessage startResponse =
+        await _api.start(TextureMessage(textureId: textureId));
+    final startDuration = Duration(milliseconds: startResponse.start);
     return _api.seekTo(PositionMessage(
       textureId: textureId,
-      position: position.inMilliseconds,
+      position: position.inMilliseconds + startDuration.inMilliseconds,
     ));
   }
 
@@ -114,18 +117,16 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<Duration> getPosition(int textureId) async {
     final PositionMessage response =
         await _api.position(TextureMessage(textureId: textureId));
-    return Duration(milliseconds: response.position);
+    final StartMessage startResponse =
+        await _api.start(TextureMessage(textureId: textureId));
+    return Duration(milliseconds: response.position - startResponse.start);
   }
 
-  late Duration _duration;
-
-  // TODO(batch): HLSのライブ視聴時のシーク可能な範囲はAVPlayerではdurationとは別で
-  // seekableTimeRangesがExoPlayerのdurationである。
-  // どのようにplatform間の誤差を吸収するかのベストプラクティスをFlutterに聞く
-  // 現状は常に同じdurationを返して既存と挙動が変わらないようにする
   @override
   Future<Duration> getDuration(int textureId) async {
-    return _duration;
+    final DurationMessage durationResponse =
+        await _api.duration(TextureMessage(textureId: textureId));
+    return Duration(milliseconds: durationResponse.duration);
   }
 
   @override
@@ -136,7 +137,6 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
       switch (map['event']) {
         case 'initialized':
-          _duration = Duration(milliseconds: map['duration'] as int);
           return VideoEvent(
             eventType: VideoEventType.initialized,
             duration: Duration(milliseconds: map['duration'] as int),

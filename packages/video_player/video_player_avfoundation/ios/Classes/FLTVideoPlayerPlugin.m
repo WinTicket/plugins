@@ -374,19 +374,40 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (int64_t)duration {
-  // Note: https://openradar.appspot.com/radar?id=4968600712511488
-  // `[AVPlayerItem duration]` can be `kCMTimeIndefinite`,
-  // use `[[AVPlayerItem asset] duration]` instead.
-  return FLTCMTimeToMillis([[[_player currentItem] asset] duration]);
+  // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
+  // iOSでは
+  // - ライブ配信: seekableTimeRanges
+  // - mp4の動画: duration
+  // を利用する必要がある。seekableTimeRangesが有無で条件分岐する
+  NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
+  if (seekableRange) {
+     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+     return FLTCMTimeToMillis(seekableDuration.duration);
+  }
+  else {
+     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+  }
 }
 
-- (void)seekTo:(int)location {
+- (int64_t)start {
+  NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
+  if (seekableRange) {
+     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+     return FLTCMTimeToMillis(seekableDuration.start);
+  }
+  else {
+     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+  }
+}
+
+- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler  {
   // TODO(stuartmorgan): Update this to use completionHandler: to only return
   // once the seek operation is complete once the Pigeon API is updated to a
   // version that handles async calls.
   [_player seekToTime:CMTimeMake(location, 1000)
       toleranceBefore:kCMTimeZero
-       toleranceAfter:kCMTimeZero];
+       toleranceAfter:kCMTimeZero
+        completionHandler:completionHandler];
 }
 
 - (void)setIsLooping:(BOOL)isLooping {
@@ -612,10 +633,28 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return result;
 }
 
-- (void)seekTo:(FLTPositionMessage *)input error:(FlutterError **)error {
+- (FLTDurationMessage *)duration:(FLTTextureMessage *)input error:(FlutterError **)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player seekTo:input.position.intValue];
-  [self.registry textureFrameAvailable:input.textureId.intValue];
+  FLTDurationMessage *result = [FLTDurationMessage makeWithTextureId:input.textureId
+                                                            duration:@([player duration])];
+  return result;
+}
+
+- (FLTStartMessage *)start:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTStartMessage *result = [FLTStartMessage makeWithTextureId:input.textureId
+                                                            start:@([player start])];
+  return result;
+}
+
+- (void)seekTo:(FLTPositionMessage *)msg completion:(void(^)(FlutterError *_Nullable))completion {
+  FLTVideoPlayer *player = self.playersByTextureId[msg.textureId];
+  [player seekTo:msg.position.intValue completionHandler:^(BOOL isFinished) {
+    if (completion) {
+      completion(nil);
+    }
+  }];
+  [self.registry textureFrameAvailable:msg.textureId.intValue];
 }
 
 - (void)pause:(FLTTextureMessage *)input error:(FlutterError **)error {
