@@ -42,6 +42,13 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class BufferMessage {
+  int minBufferMs;
+  int maxBufferMs;
+  int bufferForPlaybackMs;
+  int bufferForPlaybackAfterRebufferMs;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class VideoPlayerApi {
   void initialize();
@@ -55,6 +62,7 @@ abstract class VideoPlayerApi {
   void seekTo(PositionMessage msg);
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
+  void setBuffer(BufferMessage msg);
 }
 
 void configurePigeon(PigeonOptions opts) {

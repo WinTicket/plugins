@@ -149,6 +149,18 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
     );
   }
 
+  @override
+  Future<void> setBuffer(Buffer buffer) {
+    return _api.setBuffer(
+      BufferMessage()
+        ..minBufferMs = buffer.minBufferMs
+        ..maxBufferMs = buffer.maxBufferMs
+        ..bufferForPlaybackMs = buffer.bufferForPlaybackMs
+        ..bufferForPlaybackAfterRebufferMs =
+            buffer.bufferForPlaybackAfterRebufferMs,
+    );
+  }
+
   EventChannel _eventChannelFor(int textureId) {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }

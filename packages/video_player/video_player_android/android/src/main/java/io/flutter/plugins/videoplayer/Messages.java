@@ -478,6 +478,84 @@ public class Messages {
       return pigeonResult;
     }
   }
+
+  /** Generated class from Pigeon that represents data sent in messages. */
+  public static class BufferMessage {
+    private @Nullable Long minBufferMs;
+    public @Nullable Long getMinBufferMs() { return minBufferMs; }
+    public void setMinBufferMs(@Nullable Long setterArg) {
+      this.minBufferMs = setterArg;
+    }
+
+    private @Nullable Long maxBufferMs;
+    public @Nullable Long getMaxBufferMs() { return maxBufferMs; }
+    public void setMaxBufferMs(@Nullable Long setterArg) {
+      this.maxBufferMs = setterArg;
+    }
+
+    private @Nullable Long bufferForPlaybackMs;
+    public @Nullable Long getBufferForPlaybackMs() { return bufferForPlaybackMs; }
+    public void setBufferForPlaybackMs(@Nullable Long setterArg) {
+      this.bufferForPlaybackMs = setterArg;
+    }
+
+    private @Nullable Long bufferForPlaybackAfterRebufferMs;
+    public @Nullable Long getBufferForPlaybackAfterRebufferMs() { return bufferForPlaybackAfterRebufferMs; }
+    public void setBufferForPlaybackAfterRebufferMs(@Nullable Long setterArg) {
+      this.bufferForPlaybackAfterRebufferMs = setterArg;
+    }
+
+    public static final class Builder {
+      private @Nullable Long minBufferMs;
+      public @NonNull Builder setMinBufferMs(@Nullable Long setterArg) {
+        this.minBufferMs = setterArg;
+        return this;
+      }
+      private @Nullable Long maxBufferMs;
+      public @NonNull Builder setMaxBufferMs(@Nullable Long setterArg) {
+        this.maxBufferMs = setterArg;
+        return this;
+      }
+      private @Nullable Long bufferForPlaybackMs;
+      public @NonNull Builder setBufferForPlaybackMs(@Nullable Long setterArg) {
+        this.bufferForPlaybackMs = setterArg;
+        return this;
+      }
+      private @Nullable Long bufferForPlaybackAfterRebufferMs;
+      public @NonNull Builder setBufferForPlaybackAfterRebufferMs(@Nullable Long setterArg) {
+        this.bufferForPlaybackAfterRebufferMs = setterArg;
+        return this;
+      }
+      public @NonNull BufferMessage build() {
+        BufferMessage pigeonReturn = new BufferMessage();
+        pigeonReturn.setMinBufferMs(minBufferMs);
+        pigeonReturn.setMaxBufferMs(maxBufferMs);
+        pigeonReturn.setBufferForPlaybackMs(bufferForPlaybackMs);
+        pigeonReturn.setBufferForPlaybackAfterRebufferMs(bufferForPlaybackAfterRebufferMs);
+        return pigeonReturn;
+      }
+    }
+    @NonNull Map<String, Object> toMap() {
+      Map<String, Object> toMapResult = new HashMap<>();
+      toMapResult.put("minBufferMs", minBufferMs);
+      toMapResult.put("maxBufferMs", maxBufferMs);
+      toMapResult.put("bufferForPlaybackMs", bufferForPlaybackMs);
+      toMapResult.put("bufferForPlaybackAfterRebufferMs", bufferForPlaybackAfterRebufferMs);
+      return toMapResult;
+    }
+    static @NonNull BufferMessage fromMap(@NonNull Map<String, Object> map) {
+      BufferMessage pigeonResult = new BufferMessage();
+      Object minBufferMs = map.get("minBufferMs");
+      pigeonResult.setMinBufferMs((minBufferMs == null) ? null : ((minBufferMs instanceof Integer) ? (Integer)minBufferMs : (Long)minBufferMs));
+      Object maxBufferMs = map.get("maxBufferMs");
+      pigeonResult.setMaxBufferMs((maxBufferMs == null) ? null : ((maxBufferMs instanceof Integer) ? (Integer)maxBufferMs : (Long)maxBufferMs));
+      Object bufferForPlaybackMs = map.get("bufferForPlaybackMs");
+      pigeonResult.setBufferForPlaybackMs((bufferForPlaybackMs == null) ? null : ((bufferForPlaybackMs instanceof Integer) ? (Integer)bufferForPlaybackMs : (Long)bufferForPlaybackMs));
+      Object bufferForPlaybackAfterRebufferMs = map.get("bufferForPlaybackAfterRebufferMs");
+      pigeonResult.setBufferForPlaybackAfterRebufferMs((bufferForPlaybackAfterRebufferMs == null) ? null : ((bufferForPlaybackAfterRebufferMs instanceof Integer) ? (Integer)bufferForPlaybackAfterRebufferMs : (Long)bufferForPlaybackAfterRebufferMs));
+      return pigeonResult;
+    }
+  }
   private static class AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     public static final AndroidVideoPlayerApiCodec INSTANCE = new AndroidVideoPlayerApiCodec();
     private AndroidVideoPlayerApiCodec() {}
@@ -485,27 +563,30 @@ public class Messages {
     protected Object readValueOfType(byte type, ByteBuffer buffer) {
       switch (type) {
         case (byte)128:         
-          return CreateMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return BufferMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)129:         
-          return DurationMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return CreateMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)130:         
-          return LoopingMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return DurationMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)131:         
-          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return LoopingMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)132:         
-          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)133:         
-          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)134:         
-          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)135:         
+          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+        
+        case (byte)136:         
           return VolumeMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         default:        
@@ -515,36 +596,40 @@ public class Messages {
     }
     @Override
     protected void writeValue(ByteArrayOutputStream stream, Object value)     {
-      if (value instanceof CreateMessage) {
+      if (value instanceof BufferMessage) {
         stream.write(128);
+        writeValue(stream, ((BufferMessage) value).toMap());
+      } else 
+      if (value instanceof CreateMessage) {
+        stream.write(129);
         writeValue(stream, ((CreateMessage) value).toMap());
       } else 
       if (value instanceof DurationMessage) {
-        stream.write(129);
+        stream.write(130);
         writeValue(stream, ((DurationMessage) value).toMap());
       } else 
       if (value instanceof LoopingMessage) {
-        stream.write(130);
+        stream.write(131);
         writeValue(stream, ((LoopingMessage) value).toMap());
       } else 
       if (value instanceof MixWithOthersMessage) {
-        stream.write(131);
+        stream.write(132);
         writeValue(stream, ((MixWithOthersMessage) value).toMap());
       } else 
       if (value instanceof PlaybackSpeedMessage) {
-        stream.write(132);
+        stream.write(133);
         writeValue(stream, ((PlaybackSpeedMessage) value).toMap());
       } else 
       if (value instanceof PositionMessage) {
-        stream.write(133);
+        stream.write(134);
         writeValue(stream, ((PositionMessage) value).toMap());
       } else 
       if (value instanceof TextureMessage) {
-        stream.write(134);
+        stream.write(135);
         writeValue(stream, ((TextureMessage) value).toMap());
       } else 
       if (value instanceof VolumeMessage) {
-        stream.write(135);
+        stream.write(136);
         writeValue(stream, ((VolumeMessage) value).toMap());
       } else 
 {
@@ -567,6 +652,7 @@ public class Messages {
     void seekTo(@NonNull PositionMessage msg);
     void pause(@NonNull TextureMessage msg);
     void setMixWithOthers(@NonNull MixWithOthersMessage msg);
+    void setBuffer(@NonNull BufferMessage msg);
 
     /** The codec used by AndroidVideoPlayerApi. */
     static MessageCodec<Object> getCodec() {
@@ -847,6 +933,30 @@ public class Messages {
                 throw new NullPointerException("msgArg unexpectedly null.");
               }
               api.setMixWithOthers(msgArg);
+              wrapped.put("result", null);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.setBuffer", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              BufferMessage msgArg = (BufferMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              api.setBuffer(msgArg);
               wrapped.put("result", null);
             }
             catch (Error | RuntimeException exception) {
