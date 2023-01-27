@@ -6,19 +6,17 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 import 'messages.g.dart';
+import 'video_player_platform_interface.dart';
 
-/// An iOS implementation of [VideoPlayerPlatform] that uses the
-/// Pigeon-generated [VideoPlayerApi].
-class AVFoundationVideoPlayer extends VideoPlayerPlatform {
-  final AVFoundationVideoPlayerApi _api = AVFoundationVideoPlayerApi();
-
-  /// Registers this class as the default instance of [VideoPlayerPlatform].
-  static void registerWith() {
-    VideoPlayerPlatform.instance = AVFoundationVideoPlayer();
-  }
+/// An implementation of [VideoPlayerPlatform] that uses method channels.
+///
+/// This is the default implementation, for compatibility with existing
+/// third-party implementations. It is not used by other implementations in
+/// this repository.
+class MethodChannelVideoPlayer extends VideoPlayerPlatform {
+  final VideoPlayerApi _api = VideoPlayerApi();
 
   @override
   Future<void> init() {
@@ -27,40 +25,30 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<void> dispose(int textureId) {
-    return _api.dispose(TextureMessage(textureId: textureId));
+    return _api.dispose(TextureMessage()..textureId = textureId);
   }
 
   @override
   Future<int?> create(DataSource dataSource) async {
-    String? asset;
-    String? packageName;
-    String? uri;
-    String? formatHint;
-    Map<String, String> httpHeaders = <String, String>{};
+    final CreateMessage message = CreateMessage();
+
     switch (dataSource.sourceType) {
       case DataSourceType.asset:
-        asset = dataSource.asset;
-        packageName = dataSource.package;
+        message.asset = dataSource.asset;
+        message.packageName = dataSource.package;
         break;
       case DataSourceType.network:
-        uri = dataSource.uri;
-        formatHint = _videoFormatStringMap[dataSource.formatHint];
-        httpHeaders = dataSource.httpHeaders;
+        message.uri = dataSource.uri;
+        message.formatHint = _videoFormatStringMap[dataSource.formatHint];
+        message.httpHeaders = dataSource.httpHeaders;
         break;
       case DataSourceType.file:
-        uri = dataSource.uri;
+        message.uri = dataSource.uri;
         break;
       case DataSourceType.contentUri:
-        uri = dataSource.uri;
+        message.uri = dataSource.uri;
         break;
     }
-    final CreateMessage message = CreateMessage(
-      asset: asset,
-      packageName: packageName,
-      uri: uri,
-      httpHeaders: httpHeaders,
-      formatHint: formatHint,
-    );
 
     final TextureMessage response = await _api.create(message);
     return response.textureId;
@@ -68,65 +56,49 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<void> setLooping(int textureId, bool looping) {
-    return _api.setLooping(LoopingMessage(
-      textureId: textureId,
-      isLooping: looping,
-    ));
+    return _api.setLooping(LoopingMessage()
+      ..textureId = textureId
+      ..isLooping = looping);
   }
 
   @override
   Future<void> play(int textureId) {
-    return _api.play(TextureMessage(textureId: textureId));
+    return _api.play(TextureMessage()..textureId = textureId);
   }
 
   @override
   Future<void> pause(int textureId) {
-    return _api.pause(TextureMessage(textureId: textureId));
+    return _api.pause(TextureMessage()..textureId = textureId);
   }
 
   @override
   Future<void> setVolume(int textureId, double volume) {
-    return _api.setVolume(VolumeMessage(
-      textureId: textureId,
-      volume: volume,
-    ));
+    return _api.setVolume(VolumeMessage()
+      ..textureId = textureId
+      ..volume = volume);
   }
 
   @override
   Future<void> setPlaybackSpeed(int textureId, double speed) {
     assert(speed > 0);
 
-    return _api.setPlaybackSpeed(PlaybackSpeedMessage(
-      textureId: textureId,
-      speed: speed,
-    ));
+    return _api.setPlaybackSpeed(PlaybackSpeedMessage()
+      ..textureId = textureId
+      ..speed = speed);
   }
 
   @override
-  Future<void> seekTo(int textureId, Duration position) async {
-    final StartMessage startResponse =
-        await _api.start(TextureMessage(textureId: textureId));
-    final startDuration = Duration(milliseconds: startResponse.start);
-    return _api.seekTo(PositionMessage(
-      textureId: textureId,
-      position: position.inMilliseconds + startDuration.inMilliseconds,
-    ));
+  Future<void> seekTo(int textureId, Duration position) {
+    return _api.seekTo(PositionMessage()
+      ..textureId = textureId
+      ..position = position.inMilliseconds);
   }
 
   @override
   Future<Duration> getPosition(int textureId) async {
     final PositionMessage response =
-        await _api.position(TextureMessage(textureId: textureId));
-    final StartMessage startResponse =
-        await _api.start(TextureMessage(textureId: textureId));
-    return Duration(milliseconds: response.position - startResponse.start);
-  }
-
-  @override
-  Future<Duration> getDuration(int textureId) async {
-    final DurationMessage durationResponse =
-        await _api.duration(TextureMessage(textureId: textureId));
-    return Duration(milliseconds: durationResponse.duration);
+        await _api.position(TextureMessage()..textureId = textureId);
+    return Duration(milliseconds: response.position!);
   }
 
   @override
@@ -139,16 +111,17 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
         case 'initialized':
           return VideoEvent(
             eventType: VideoEventType.initialized,
-            duration: Duration(milliseconds: map['duration'] as int),
+            duration: Duration(milliseconds: map['duration']! as int),
             size: Size((map['width'] as num?)?.toDouble() ?? 0.0,
                 (map['height'] as num?)?.toDouble() ?? 0.0),
+            rotationCorrection: map['rotationCorrection'] as int? ?? 0,
           );
         case 'completed':
           return VideoEvent(
             eventType: VideoEventType.completed,
           );
         case 'bufferingUpdate':
-          final List<dynamic> values = map['values'] as List<dynamic>;
+          final List<dynamic> values = map['values']! as List<dynamic>;
 
           return VideoEvent(
             buffered: values.map<DurationRange>(_toDurationRange).toList(),
@@ -171,15 +144,21 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) {
-    return _api
-        .setMixWithOthers(MixWithOthersMessage(mixWithOthers: mixWithOthers));
+    return _api.setMixWithOthers(
+      MixWithOthersMessage()..mixWithOthers = mixWithOthers,
+    );
   }
 
   @override
   Future<void> setBuffer(Buffer buffer) {
-    // TODO(batch): implement setBuffer
-    // ignore: always_specify_types
-    return Future.value();
+    return _api.setBuffer(
+      BufferMessage()
+        ..minBufferMs = buffer.minBufferMs
+        ..maxBufferMs = buffer.maxBufferMs
+        ..bufferForPlaybackMs = buffer.bufferForPlaybackMs
+        ..bufferForPlaybackAfterRebufferMs =
+            buffer.bufferForPlaybackAfterRebufferMs,
+    );
   }
 
   EventChannel _eventChannelFor(int textureId) {
@@ -197,8 +176,8 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   DurationRange _toDurationRange(dynamic value) {
     final List<dynamic> pair = value as List<dynamic>;
     return DurationRange(
-      Duration(milliseconds: pair[0] as int),
-      Duration(milliseconds: pair[1] as int),
+      Duration(milliseconds: pair[0]! as int),
+      Duration(milliseconds: pair[1]! as int),
     );
   }
 }

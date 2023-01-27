@@ -13,7 +13,9 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
+import io.flutter.plugins.videoplayer.Messages.BufferMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
+import io.flutter.plugins.videoplayer.Messages.DurationMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
@@ -21,6 +23,10 @@ import io.flutter.plugins.videoplayer.Messages.PositionMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
 import io.flutter.plugins.videoplayer.Messages.VolumeMessage;
 import io.flutter.view.TextureRegistry;
+import static java.lang.Math.toIntExact;
+
+import com.google.android.exoplayer2.DefaultLoadControl;
+
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -196,6 +202,17 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     return result;
   }
 
+  public DurationMessage duration(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    DurationMessage result =
+            new DurationMessage.Builder()
+                .setDuration(player.getDuration())
+                .setTextureId(arg.getTextureId())
+                .build();
+    player.sendBufferingUpdate();
+    return result;
+  }
+
   public void seekTo(PositionMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     player.seekTo(arg.getPosition().intValue());
@@ -209,6 +226,25 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   @Override
   public void setMixWithOthers(MixWithOthersMessage arg) {
     options.mixWithOthers = arg.getMixWithOthers();
+  }
+
+  @Override
+  public void setBuffer(BufferMessage arg) {
+    if (arg == null) return;
+    VideoPlayerBuffer buffer = new VideoPlayerBuffer();
+    buffer.minBufferMs = (arg.getMinBufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_MIN_BUFFER_MS
+        : toIntExact(arg.getMinBufferMs());
+    buffer.maxBufferMs = (arg.getMaxBufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_MAX_BUFFER_MS
+        : toIntExact(arg.getMaxBufferMs());
+    buffer.bufferForPlaybackMs = (arg.getBufferForPlaybackMs() == null)
+        ? DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS
+        : toIntExact(arg.getBufferForPlaybackMs());
+    buffer.bufferForPlaybackAfterRebufferMs = (arg.getBufferForPlaybackAfterRebufferMs() == null)
+        ? DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
+        : toIntExact(arg.getBufferForPlaybackAfterRebufferMs());
+    options.buffer = buffer;
   }
 
   private interface KeyForAssetFn {
