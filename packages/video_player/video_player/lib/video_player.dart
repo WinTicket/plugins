@@ -320,7 +320,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     final bool allowBackgroundPlayback =
         videoPlayerOptions?.allowBackgroundPlayback ?? false;
     if (!allowBackgroundPlayback) {
-      _lifeCycleObserver = _VideoAppLifeCycleObserver(this);
+      _lifeCycleObserver = _VideoAppLifeCycleObserver(this, (isPlaying) {
+        value = value.copyWith(isPlaying: isPlaying);
+      });
     }
     _lifeCycleObserver?.initialize();
     _creatingCompleter = Completer<void>();
@@ -583,6 +585,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     return await _videoPlayerPlatform.getDuration(_textureId);
   }
 
+  /// The latest playing status.
+  Future<bool?> get isPlaying async {
+    if (_isDisposed) {
+      return null;
+    }
+    return await _videoPlayerPlatform.getIsPlaying(_textureId);
+  }
+
   /// Sets the video's current timestamp to be at [moment]. The next
   /// time the video is played it will resume from the given [moment].
   ///
@@ -725,26 +735,38 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 }
 
 class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
-  _VideoAppLifeCycleObserver(this._controller);
+  _VideoAppLifeCycleObserver(this._controller, this.isPlayingChanged);
 
-  bool _wasPlayingBeforePause = false;
   final VideoPlayerController _controller;
+  final ValueChanged<bool> isPlayingChanged;
 
   void initialize() {
     _ambiguate(WidgetsBinding.instance)!.addObserver(this);
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     switch (state) {
-      case AppLifecycleState.paused:
-        _wasPlayingBeforePause = _controller.value.isPlaying;
-        _controller.pause();
-        break;
       case AppLifecycleState.resumed:
-        if (_wasPlayingBeforePause) {
-          _controller.play();
+        // WORKAROUND: iOSで
+        // 1. background再生を有効にし、レース詳細の映像を再生したままbackgroundへ
+        // 2. 他のアプリで動画や音声を再生する
+        // 3. WTに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
+        // そのため最新のisPlayingの値を取得する
+        // WARNING: 元々の_wasPlayingBeforePauseの実装に関してはapp側で実装をおこなっておりvideo_player側の実装からは外す。
+        // SeeAlso: https://github.com/WinTicket/plugins/blob/ff84c44a5ddbfe10e96f16fe6c09157d36cc2867/packages/video_player/video_player/lib/video_player.dart#L699
+        final bool? isPlaying = await _controller.isPlaying;
+        if (isPlaying != null && defaultTargetPlatform == TargetPlatform.iOS) {
+          isPlayingChanged(isPlaying);
         }
+        // if (state == AppLifecycleState.paused) {
+        //   _wasPlayingBeforePause = _controller.value.isPlaying;
+        //   _controller.pause();
+        // } else if (state == AppLifecycleState.resumed) {
+        //   if (_wasPlayingBeforePause) {
+        //     _controller.play();
+        //   }
+        // }
         break;
       default:
     }
