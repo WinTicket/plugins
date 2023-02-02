@@ -69,6 +69,12 @@ class BufferMessage {
   int? bufferForPlaybackAfterRebufferMs;
 }
 
+class IsPlayingMessage {
+  IsPlayingMessage(this.textureId, this.isPlaying);
+  int textureId;
+  bool isPlaying;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -84,4 +90,5 @@ abstract class AndroidVideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  IsPlayingMessage isPlaying(TextureMessage msg);
 }

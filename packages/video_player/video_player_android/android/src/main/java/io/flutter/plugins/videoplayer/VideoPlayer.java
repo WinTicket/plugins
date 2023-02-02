@@ -309,6 +309,8 @@ final class VideoPlayer {
     return exoPlayer.getDuration();
   }
 
+  long getIsPlaying() { return exoPlayer.getPlaybackState() == Player.STATE_READY && exoPlayer.getPlayWhenReady(); }
+
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
   void sendInitialized() {

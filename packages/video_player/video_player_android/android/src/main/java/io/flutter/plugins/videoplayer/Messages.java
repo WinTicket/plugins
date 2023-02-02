@@ -556,6 +556,62 @@ public class Messages {
       return pigeonResult;
     }
   }
+
+  /** Generated class from Pigeon that represents data sent in messages. */
+  public static class IsPlayingMessage {
+    private @NonNull Long textureId;
+    public @NonNull Long getTextureId() { return textureId; }
+    public void setTextureId(@NonNull Long setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"textureId\" is null.");
+      }
+      this.textureId = setterArg;
+    }
+
+    private @NonNull Boolean isPlaying;
+    public @NonNull Boolean getIsPlaying() { return isPlaying; }
+    public void setIsPlaying(@NonNull Boolean setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"isPlaying\" is null.");
+      }
+      this.isPlaying = setterArg;
+    }
+
+    /** Constructor is private to enforce null safety; use Builder. */
+    private IsPlayingMessage() {}
+    public static final class Builder {
+      private @Nullable Long textureId;
+      public @NonNull Builder setTextureId(@NonNull Long setterArg) {
+        this.textureId = setterArg;
+        return this;
+      }
+      private @Nullable Boolean isPlaying;
+      public @NonNull Builder setIsPlaying(@NonNull Boolean setterArg) {
+        this.isPlaying = setterArg;
+        return this;
+      }
+      public @NonNull IsPlayingMessage build() {
+        IsPlayingMessage pigeonReturn = new IsPlayingMessage();
+        pigeonReturn.setTextureId(textureId);
+        pigeonReturn.setIsPlaying(isPlaying);
+        return pigeonReturn;
+      }
+    }
+    @NonNull Map<String, Object> toMap() {
+      Map<String, Object> toMapResult = new HashMap<>();
+      toMapResult.put("textureId", textureId);
+      toMapResult.put("isPlaying", isPlaying);
+      return toMapResult;
+    }
+    static @NonNull IsPlayingMessage fromMap(@NonNull Map<String, Object> map) {
+      IsPlayingMessage pigeonResult = new IsPlayingMessage();
+      Object textureId = map.get("textureId");
+      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer)textureId : (Long)textureId));
+      Object isPlaying = map.get("isPlaying");
+      pigeonResult.setIsPlaying((Boolean)isPlaying);
+      return pigeonResult;
+    }
+  }
   private static class AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     public static final AndroidVideoPlayerApiCodec INSTANCE = new AndroidVideoPlayerApiCodec();
     private AndroidVideoPlayerApiCodec() {}
@@ -572,21 +628,24 @@ public class Messages {
           return DurationMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)131:         
-          return LoopingMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return IsPlayingMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)132:         
-          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return LoopingMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)133:         
-          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)134:         
-          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)135:         
-          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)136:         
+          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+        
+        case (byte)137:         
           return VolumeMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         default:        
@@ -608,28 +667,32 @@ public class Messages {
         stream.write(130);
         writeValue(stream, ((DurationMessage) value).toMap());
       } else 
-      if (value instanceof LoopingMessage) {
+      if (value instanceof IsPlayingMessage) {
         stream.write(131);
+        writeValue(stream, ((IsPlayingMessage) value).toMap());
+      } else 
+      if (value instanceof LoopingMessage) {
+        stream.write(132);
         writeValue(stream, ((LoopingMessage) value).toMap());
       } else 
       if (value instanceof MixWithOthersMessage) {
-        stream.write(132);
+        stream.write(133);
         writeValue(stream, ((MixWithOthersMessage) value).toMap());
       } else 
       if (value instanceof PlaybackSpeedMessage) {
-        stream.write(133);
+        stream.write(134);
         writeValue(stream, ((PlaybackSpeedMessage) value).toMap());
       } else 
       if (value instanceof PositionMessage) {
-        stream.write(134);
+        stream.write(135);
         writeValue(stream, ((PositionMessage) value).toMap());
       } else 
       if (value instanceof TextureMessage) {
-        stream.write(135);
+        stream.write(136);
         writeValue(stream, ((TextureMessage) value).toMap());
       } else 
       if (value instanceof VolumeMessage) {
-        stream.write(136);
+        stream.write(137);
         writeValue(stream, ((VolumeMessage) value).toMap());
       } else 
 {
@@ -653,6 +716,7 @@ public class Messages {
     void pause(@NonNull TextureMessage msg);
     void setMixWithOthers(@NonNull MixWithOthersMessage msg);
     void setBuffer(@NonNull BufferMessage msg);
+    @NonNull IsPlayingMessage isPlaying(@NonNull TextureMessage msg);
 
     /** The codec used by AndroidVideoPlayerApi. */
     static MessageCodec<Object> getCodec() {
@@ -958,6 +1022,30 @@ public class Messages {
               }
               api.setBuffer(msgArg);
               wrapped.put("result", null);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.isPlaying", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              TextureMessage msgArg = (TextureMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              IsPlayingMessage output = api.isPlaying(msgArg);
+              wrapped.put("result", output);
             }
             catch (Error | RuntimeException exception) {
               wrapped.put("error", wrapError(exception));
