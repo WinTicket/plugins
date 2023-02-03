@@ -319,10 +319,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Future<void> initialize() async {
     final bool allowBackgroundPlayback =
         videoPlayerOptions?.allowBackgroundPlayback ?? false;
-    if (!allowBackgroundPlayback) {
-      _lifeCycleObserver = _VideoAppLifeCycleObserver(this, (isPlaying) {
-        value = value.copyWith(isPlaying: isPlaying);
-      });
+    if (allowBackgroundPlayback) {
+      // background時にしか起きない不整合の対応(詳細は_VideoAppLifeCycleObserver内部に)
+      _lifeCycleObserver = _VideoAppLifeCycleObserver(this);
     }
     _lifeCycleObserver?.initialize();
     _creatingCompleter = Completer<void>();
@@ -735,10 +734,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 }
 
 class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
-  _VideoAppLifeCycleObserver(this._controller, this.isPlayingChanged);
+  _VideoAppLifeCycleObserver(this._controller);
 
   final VideoPlayerController _controller;
-  final ValueChanged<bool> isPlayingChanged;
 
   void initialize() {
     _ambiguate(WidgetsBinding.instance)!.addObserver(this);
@@ -753,23 +751,23 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
         // 2. 他のアプリで動画や音声を再生する
         // 3. WTに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
         // そのため最新のisPlayingの値を取得する
-        // WARNING: 元々の_wasPlayingBeforePauseの実装に関してはapp側で実装をおこなっておりvideo_player側の実装からは外す。
-        // SeeAlso: https://github.com/WinTicket/plugins/blob/ff84c44a5ddbfe10e96f16fe6c09157d36cc2867/packages/video_player/video_player/lib/video_player.dart#L699
         final bool? isPlaying = await _controller.isPlaying;
         if (isPlaying != null && defaultTargetPlatform == TargetPlatform.iOS) {
-          isPlayingChanged(isPlaying);
+          isPlaying ? _controller.play() : _controller.pause();
         }
-        // if (state == AppLifecycleState.paused) {
-        //   _wasPlayingBeforePause = _controller.value.isPlaying;
-        //   _controller.pause();
-        // } else if (state == AppLifecycleState.resumed) {
-        //   if (_wasPlayingBeforePause) {
-        //     _controller.play();
-        //   }
-        // }
         break;
       default:
     }
+    // WARNING: 元々の_wasPlayingBeforePauseの実装に関してはapp側で実装をおこなっておりvideo_player側の実装からは外す。
+    // SeeAlso: https://github.com/WinTicket/plugins/blob/ff84c44a5ddbfe10e96f16fe6c09157d36cc2867/packages/video_player/video_player/lib/video_player.dart#L699
+    // if (state == AppLifecycleState.paused) {
+    //   _wasPlayingBeforePause = _controller.value.isPlaying;
+    //   _controller.pause();
+    // } else if (state == AppLifecycleState.resumed) {
+    //   if (_wasPlayingBeforePause) {
+    //     _controller.play();
+    //   }
+    // }
   }
 
   void dispose() {
