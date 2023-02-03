@@ -309,7 +309,7 @@ final class VideoPlayer {
     return exoPlayer.getDuration();
   }
 
-  long getIsPlaying() { return exoPlayer.getPlaybackState() == Player.STATE_READY && exoPlayer.getPlayWhenReady(); }
+  boolean getIsPlaying() { return exoPlayer.isPlaying(); }
 
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
