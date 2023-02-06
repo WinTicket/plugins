@@ -746,13 +746,13 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     switch (state) {
       case AppLifecycleState.resumed:
-        // WORKAROUND: iOSで
+        // WORKAROUND:
         // 1. background再生を有効にし、レース詳細の映像を再生したままbackgroundへ
         // 2. 他のアプリで動画や音声を再生する
         // 3. WTに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
         // そのため最新のisPlayingの値を取得する
         final bool? isPlaying = await _controller.isPlaying;
-        if (isPlaying != null && defaultTargetPlatform == TargetPlatform.iOS) {
+        if (isPlaying != null) {
           isPlaying ? _controller.play() : _controller.pause();
         }
         break;
