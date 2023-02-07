@@ -752,22 +752,11 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
         // 3. WTに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
         // そのため最新のisPlayingの値を取得する
         final bool? isPlaying = await _controller.isPlaying;
-        if (isPlaying != null) {
-          isPlaying ? _controller.play() : _controller.pause();
-        }
+        if (isPlaying == null) return;
+        isPlaying ? _controller.play() : _controller.pause();
         break;
       default:
     }
-    // WARNING: 元々の_wasPlayingBeforePauseの実装に関してはapp側で実装をおこなっておりvideo_player側の実装からは外す。
-    // SeeAlso: https://github.com/WinTicket/plugins/blob/ff84c44a5ddbfe10e96f16fe6c09157d36cc2867/packages/video_player/video_player/lib/video_player.dart#L699
-    // if (state == AppLifecycleState.paused) {
-    //   _wasPlayingBeforePause = _controller.value.isPlaying;
-    //   _controller.pause();
-    // } else if (state == AppLifecycleState.resumed) {
-    //   if (_wasPlayingBeforePause) {
-    //     _controller.play();
-    //   }
-    // }
   }
 
   void dispose() {
