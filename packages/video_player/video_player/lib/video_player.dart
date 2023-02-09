@@ -734,9 +734,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 }
 
 class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
-  _VideoAppLifeCycleObserver(this._controller);
+  _VideoAppLifeCycleObserver(this._controller, this.allowBackgroundPlayback);
 
+  bool _wasPlayingBeforePause = false;
   final VideoPlayerController _controller;
+  final bool allowBackgroundPlayback;
 
   void initialize() {
     _ambiguate(WidgetsBinding.instance)!.addObserver(this);
@@ -744,18 +746,33 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
 
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        // WORKAROUND:
-        // 1. background再生を有効時に映像を再生したままbackgroundへ
-        // 2. 他のアプリで動画や音声を再生する
-        // 3. 本アプリに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
-        // そのため最新のisPlayingの値を取得する
-        final bool? isPlaying = await _controller.isPlaying;
-        if (isPlaying == null) return;
-        isPlaying ? _controller.play() : _controller.pause();
-        break;
-      default:
+    if (allowBackgroundPlayback) {
+      switch (state) {
+        case AppLifecycleState.resumed:
+          // WORKAROUND:
+          // 1. background再生を有効時に映像を再生したままbackgroundへ
+          // 2. 他のアプリで動画や音声を再生する
+          // 3. 本アプリに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
+          // そのため最新のisPlayingの値を取得する
+          final bool? isPlaying = await _controller.isPlaying;
+          if (isPlaying == null) return;
+          isPlaying ? _controller.play() : _controller.pause();
+          break;
+        default:
+      }
+    } else {
+      switch (state) {
+        case AppLifecycleState.paused:
+          _wasPlayingBeforePause = _controller.value.isPlaying;
+          _controller.pause();
+          break;
+        case AppLifecycleState.resumed:
+          if (_wasPlayingBeforePause) {
+            _controller.play();
+          }
+          break;
+        default:
+      }
     }
   }
 

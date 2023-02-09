@@ -221,7 +221,6 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
                     .setIsPlaying(player.getIsPlaying())
                     .setTextureId(arg.getTextureId())
                     .build();
-    player.sendBufferingUpdate();
     return result;
   }
 
