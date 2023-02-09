@@ -319,10 +319,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Future<void> initialize() async {
     final bool allowBackgroundPlayback =
         videoPlayerOptions?.allowBackgroundPlayback ?? false;
-    if (allowBackgroundPlayback) {
-      // background時にしか起きない不整合の対応(詳細は_VideoAppLifeCycleObserver内部に)
-      _lifeCycleObserver = _VideoAppLifeCycleObserver(this);
-    }
+    _lifeCycleObserver =
+        _VideoAppLifeCycleObserver(this, allowBackgroundPlayback);
     _lifeCycleObserver?.initialize();
     _creatingCompleter = Completer<void>();
 
