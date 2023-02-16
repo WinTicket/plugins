@@ -460,7 +460,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// has been sent to the platform, not when playback itself is totally
   /// finished.
   Future<void> play() async {
-    print('VideoPlayer play called!!!');
     if (value.position == value.duration) {
       await seekTo(Duration.zero);
     }
@@ -477,7 +476,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   /// Pauses the video.
   Future<void> pause() async {
-    print('VideoPlayer pause called!!!');
     value = value.copyWith(isPlaying: false);
     await _applyPlayPause();
   }
@@ -516,7 +514,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       return;
     }
     if (value.isPlaying) {
-      print('_applyPlayPause: play called!!!!');
       await _videoPlayerPlatform.play(_textureId);
 
       // Cancel previous timer.
@@ -541,7 +538,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       await _applyPlaybackSpeed();
     } else {
       _timerForPosition?.cancel();
-      print('_applyPlayPause: pause called!!!!');
       await _videoPlayerPlatform.pause(_textureId);
     }
   }
