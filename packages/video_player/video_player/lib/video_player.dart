@@ -319,8 +319,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Future<void> initialize() async {
     final bool allowBackgroundPlayback =
         videoPlayerOptions?.allowBackgroundPlayback ?? false;
-    _lifeCycleObserver =
-        _VideoAppLifeCycleObserver(this, allowBackgroundPlayback);
+    if (!allowBackgroundPlayback) {
+      _lifeCycleObserver = _VideoAppLifeCycleObserver(this);
+    }
     _lifeCycleObserver?.initialize();
     _creatingCompleter = Completer<void>();
 
@@ -459,6 +460,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// has been sent to the platform, not when playback itself is totally
   /// finished.
   Future<void> play() async {
+    print('VideoPlayer play called!!!');
     if (value.position == value.duration) {
       await seekTo(Duration.zero);
     }
@@ -475,6 +477,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   /// Pauses the video.
   Future<void> pause() async {
+    print('VideoPlayer pause called!!!');
     value = value.copyWith(isPlaying: false);
     await _applyPlayPause();
   }
@@ -513,6 +516,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       return;
     }
     if (value.isPlaying) {
+      print('_applyPlayPause: play called!!!!');
       await _videoPlayerPlatform.play(_textureId);
 
       // Cancel previous timer.
@@ -537,6 +541,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       await _applyPlaybackSpeed();
     } else {
       _timerForPosition?.cancel();
+      print('_applyPlayPause: pause called!!!!');
       await _videoPlayerPlatform.pause(_textureId);
     }
   }
@@ -732,45 +737,28 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 }
 
 class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
-  _VideoAppLifeCycleObserver(this._controller, this.allowBackgroundPlayback);
+  _VideoAppLifeCycleObserver(this._controller);
 
   bool _wasPlayingBeforePause = false;
   final VideoPlayerController _controller;
-  final bool allowBackgroundPlayback;
 
   void initialize() {
     _ambiguate(WidgetsBinding.instance)!.addObserver(this);
   }
 
   @override
-  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (allowBackgroundPlayback) {
-      switch (state) {
-        case AppLifecycleState.resumed:
-          // WORKAROUND:
-          // 1. background再生を有効時に映像を再生したままbackgroundへ
-          // 2. 他のアプリで動画や音声を再生する
-          // 3. 本アプリに戻ってきたときに動画自体は停止しているのにvalue.isPlayingがtrueのままになっている
-          // そのため最新のisPlayingの値を取得する
-          final bool? isPlaying = await _controller.isPlaying;
-          if (isPlaying == null) return;
-          isPlaying ? _controller.play() : _controller.pause();
-          break;
-        default:
-      }
-    } else {
-      switch (state) {
-        case AppLifecycleState.paused:
-          _wasPlayingBeforePause = _controller.value.isPlaying;
-          _controller.pause();
-          break;
-        case AppLifecycleState.resumed:
-          if (_wasPlayingBeforePause) {
-            _controller.play();
-          }
-          break;
-        default:
-      }
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+        _wasPlayingBeforePause = _controller.value.isPlaying;
+        _controller.pause();
+        break;
+      case AppLifecycleState.resumed:
+        if (_wasPlayingBeforePause) {
+          _controller.play();
+        }
+        break;
+      default:
     }
   }
 
