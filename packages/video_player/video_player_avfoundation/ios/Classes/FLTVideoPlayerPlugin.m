@@ -381,6 +381,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return FLTCMTimeToMillis([_player currentTime]);
 }
 
+- (BOOL)getLatestIsPlaying {
+  return _player.rate > 0;
+}
+
 - (int64_t)duration {
   // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
   // iOSでは
@@ -679,6 +683,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   } else {
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
   }
+}
+
+- (FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
+                                                            isPlaying:@([player getLatestIsPlaying])];
+  return result;
 }
 
 @end

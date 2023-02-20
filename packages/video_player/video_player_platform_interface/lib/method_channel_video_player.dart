@@ -102,6 +102,13 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
+  Future<bool> getIsPlaying(int textureId) async {
+    final IsPlayingMessage response =
+        await _api.isPlaying(TextureMessage()..textureId = textureId);
+    return response.isPlaying ?? false;
+  }
+
+  @override
   Stream<VideoEvent> videoEventsFor(int textureId) {
     return _eventChannelFor(textureId)
         .receiveBroadcastStream()
