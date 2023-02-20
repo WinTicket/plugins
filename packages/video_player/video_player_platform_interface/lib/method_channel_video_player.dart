@@ -105,7 +105,7 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   Future<bool> getIsPlaying(int textureId) async {
     final IsPlayingMessage response =
         await _api.isPlaying(TextureMessage()..textureId = textureId);
-    return response.isPlaying!;
+    return response.isPlaying ?? false;
   }
 
   @override

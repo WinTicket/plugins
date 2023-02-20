@@ -114,7 +114,7 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('setBuffer() has not been implemented.');
   }
 
-  /// Get latest isPlaying.
+  /// Get latest isPlaying status from ExoPlayer/AVPlayer
   Future<bool> getIsPlaying(int textureId) {
     throw UnimplementedError('isPlaying() has not been implemented.');
   }

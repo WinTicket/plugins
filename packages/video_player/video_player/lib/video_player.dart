@@ -583,10 +583,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     return await _videoPlayerPlatform.getDuration(_textureId);
   }
 
-  /// The latest playing status.
-  Future<bool?> get isPlaying async {
+  /// Get latest isPlaying status from ExoPlayer/AVPlayer
+  Future<bool> get isPlaying async {
     if (_isDisposed) {
-      return null;
+      return false;
     }
     return await _videoPlayerPlatform.getIsPlaying(_textureId);
   }
