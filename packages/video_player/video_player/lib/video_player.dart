@@ -366,8 +366,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     // AndroidはtextureIdが不要。かつcreateの実行前じゃないといけない。
     if (defaultTargetPlatform == TargetPlatform.android &&
         bufferOption != null) {
-      await _videoPlayerPlatform.setBuffer(
-          kUninitializedTextureId, bufferOption);
+      await _videoPlayerPlatform.setBuffer(_textureId, bufferOption);
     }
 
     _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ??
