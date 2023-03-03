@@ -50,6 +50,11 @@ class BufferMessage {
   int bufferForPlaybackAfterRebufferMs;
 }
 
+class IsPlayingMessage {
+  int textureId;
+  bool isPlaying;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class VideoPlayerApi {
   void initialize();
@@ -64,6 +69,7 @@ abstract class VideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  IsPlayingMessage isPlaying(TextureMessage msg);
 }
 
 void configurePigeon(PigeonOptions opts) {

@@ -383,6 +383,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   currentItem.preferredForwardBufferDuration = buffer;
 }
 
+- (BOOL)getLatestIsPlaying {
+  return _player.rate > 0;
+}
+
 - (int64_t)duration {
   // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
   // iOSでは
@@ -686,6 +690,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)setBuffer:(FLTBufferMessage *)input error:(FlutterError *_Nullable *_Nonnull)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   [player setBuffer:input.second.doubleValue];
+}
+
+- (FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
+                                                            isPlaying:@([player getLatestIsPlaying])];
+  return result;
 }
 
 @end

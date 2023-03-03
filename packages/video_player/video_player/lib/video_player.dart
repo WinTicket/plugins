@@ -594,6 +594,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     return await _videoPlayerPlatform.getDuration(_textureId);
   }
 
+  /// Get latest isPlaying status from ExoPlayer/AVPlayer
+  Future<bool> get isPlaying async {
+    if (_isDisposed) {
+      return false;
+    }
+    return await _videoPlayerPlatform.getIsPlaying(_textureId);
+  }
+
   /// Sets the video's current timestamp to be at [moment]. The next
   /// time the video is played it will resume from the given [moment].
   ///

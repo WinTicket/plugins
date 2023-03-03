@@ -113,6 +113,11 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   Future<void> setBuffer(int textureId, Buffer buffer) {
     throw UnimplementedError('setBuffer() has not been implemented.');
   }
+
+  /// Get latest isPlaying status from ExoPlayer/AVPlayer
+  Future<bool> getIsPlaying(int textureId) {
+    throw UnimplementedError('isPlaying() has not been implemented.');
+  }
 }
 
 /// バッファを調整するための各パラメーター

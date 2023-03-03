@@ -50,7 +50,7 @@ class DurationMessage {
 }
 
 class StartMessage {
-  StartMessage(this.textureId, this.duration);
+  StartMessage(this.textureId, this.start);
   int textureId;
   int start;
 }
@@ -73,6 +73,12 @@ class BufferMessage {
   BufferMessage(this.textureId, this.second);
   int textureId;
   int second;
+}
+
+class IsPlayingMessage {
+  IsPlayingMessage(this.textureId, this.isPlaying);
+  int textureId;
+  bool isPlaying;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
@@ -106,4 +112,6 @@ abstract class AVFoundationVideoPlayerApi {
   void setMixWithOthers(MixWithOthersMessage msg);
   @ObjCSelector('setBuffer:')
   void setBuffer(BufferMessage msg);
+  @ObjCSelector('isPlaying:')
+  IsPlayingMessage isPlaying(TextureMessage msg);
 }

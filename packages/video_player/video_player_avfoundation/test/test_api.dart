@@ -30,32 +30,36 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
     } else 
-    if (value is LoopingMessage) {
+    if (value is IsPlayingMessage) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else 
-    if (value is MixWithOthersMessage) {
+    if (value is LoopingMessage) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PlaybackSpeedMessage) {
+    if (value is MixWithOthersMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PositionMessage) {
+    if (value is PlaybackSpeedMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else 
-    if (value is StartMessage) {
+    if (value is PositionMessage) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else 
-    if (value is TextureMessage) {
+    if (value is StartMessage) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else 
-    if (value is VolumeMessage) {
+    if (value is TextureMessage) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    } else 
+    if (value is VolumeMessage) {
+      buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else 
 {
@@ -75,24 +79,27 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
         return DurationMessage.decode(readValue(buffer)!);
       
       case 131:       
-        return LoopingMessage.decode(readValue(buffer)!);
+        return IsPlayingMessage.decode(readValue(buffer)!);
       
       case 132:       
-        return MixWithOthersMessage.decode(readValue(buffer)!);
+        return LoopingMessage.decode(readValue(buffer)!);
       
       case 133:       
-        return PlaybackSpeedMessage.decode(readValue(buffer)!);
+        return MixWithOthersMessage.decode(readValue(buffer)!);
       
       case 134:       
-        return PositionMessage.decode(readValue(buffer)!);
+        return PlaybackSpeedMessage.decode(readValue(buffer)!);
       
       case 135:       
-        return StartMessage.decode(readValue(buffer)!);
+        return PositionMessage.decode(readValue(buffer)!);
       
       case 136:       
-        return TextureMessage.decode(readValue(buffer)!);
+        return StartMessage.decode(readValue(buffer)!);
       
       case 137:       
+        return TextureMessage.decode(readValue(buffer)!);
+      
+      case 138:       
         return VolumeMessage.decode(readValue(buffer)!);
       
       default:      
@@ -118,6 +125,7 @@ abstract class TestHostVideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  IsPlayingMessage isPlaying(TextureMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
@@ -337,6 +345,22 @@ abstract class TestHostVideoPlayerApi {
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setBuffer was null, expected non-null BufferMessage.');
           api.setBuffer(arg_msg!);
           return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPlaying', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPlaying was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPlaying was null, expected non-null TextureMessage.');
+          final IsPlayingMessage output = api.isPlaying(arg_msg!);
+          return <Object?, Object?>{'result': output};
         });
       }
     }

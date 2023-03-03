@@ -183,6 +183,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
     return _api.setBuffer(BufferMessage(textureId: textureId, second: second));
   }
 
+  @override
+  Future<bool> getIsPlaying(int textureId) async {
+    final IsPlayingMessage isPlayingResponse =
+        await _api.isPlaying(TextureMessage(textureId: textureId));
+    return isPlayingResponse.isPlaying;
+  }
+
   EventChannel _eventChannelFor(int textureId) {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }
