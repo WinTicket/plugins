@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class FLTStartMessage;
 @class FLTCreateMessage;
 @class FLTMixWithOthersMessage;
+@class FLTBufferMessage;
 @class FLTIsPlayingMessage;
 
 @interface FLTTextureMessage : NSObject
@@ -105,6 +106,15 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong) NSNumber * mixWithOthers;
 @end
 
+@interface FLTBufferMessage : NSObject
+/// `init` unavailable to enforce nonnull fields, see the `make` class method.
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    second:(NSNumber *)second;
+@property(nonatomic, strong) NSNumber * textureId;
+@property(nonatomic, strong) NSNumber * second;
+@end
+
 @interface FLTIsPlayingMessage : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
 - (instancetype)init NS_UNAVAILABLE;
@@ -135,6 +145,7 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (void)seekTo:(FLTPositionMessage *)msg completion:(void(^)(FlutterError *_Nullable))completion;
 - (void)pause:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setMixWithOthers:(FLTMixWithOthersMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
+- (void)setBuffer:(FLTBufferMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
 - (nullable FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 @end

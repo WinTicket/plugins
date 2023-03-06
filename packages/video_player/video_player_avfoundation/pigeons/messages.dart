@@ -69,6 +69,12 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class BufferMessage {
+  BufferMessage(this.textureId, this.second);
+  int textureId;
+  int second;
+}
+
 class IsPlayingMessage {
   IsPlayingMessage(this.textureId, this.isPlaying);
   int textureId;
@@ -104,6 +110,8 @@ abstract class AVFoundationVideoPlayerApi {
   void pause(TextureMessage msg);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(MixWithOthersMessage msg);
+  @ObjCSelector('setBuffer:')
+  void setBuffer(BufferMessage msg);
   @ObjCSelector('isPlaying:')
   IsPlayingMessage isPlaying(TextureMessage msg);
 }

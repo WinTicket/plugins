@@ -43,6 +43,7 @@ class MixWithOthersMessage {
 }
 
 class BufferMessage {
+  int textureId;
   int minBufferMs;
   int maxBufferMs;
   int bufferForPlaybackMs;

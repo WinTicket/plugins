@@ -176,10 +176,11 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> setBuffer(Buffer buffer) {
-    // TODO(batch): implement setBuffer
-    // ignore: always_specify_types
-    return Future.value();
+  Future<void> setBuffer(int textureId, Buffer buffer) {
+    if (buffer.maxBufferMs == null) return Future.value();
+    // maxBufferMsはミリ秒なので秒に変換する
+    final second = (buffer.maxBufferMs! / 1000).toInt();
+    return _api.setBuffer(BufferMessage(textureId: textureId, second: second));
   }
 
   @override

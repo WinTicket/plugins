@@ -110,7 +110,7 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   }
 
   /// Sets the buffer.
-  Future<void> setBuffer(Buffer buffer) {
+  Future<void> setBuffer(int textureId, Buffer buffer) {
     throw UnimplementedError('setBuffer() has not been implemented.');
   }
 
