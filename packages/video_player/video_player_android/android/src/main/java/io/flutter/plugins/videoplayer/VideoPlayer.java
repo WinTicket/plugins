@@ -103,7 +103,10 @@ final class VideoPlayer {
       DefaultHttpDataSource.Factory httpDataSourceFactory =
           new DefaultHttpDataSource.Factory()
               .setUserAgent("ExoPlayer")
-              .setAllowCrossProtocolRedirects(true);
+              .setAllowCrossProtocolRedirects(true)
+              .setDefaultRequestProperties(
+                  Collections.singletonMap("Accept-Encoding", "gzip, deflate")
+              );
 
       if (httpHeaders != null && !httpHeaders.isEmpty()) {
         httpDataSourceFactory.setDefaultRequestProperties(httpHeaders);
