@@ -105,7 +105,7 @@ final class VideoPlayer {
               .setUserAgent("ExoPlayer")
               .setAllowCrossProtocolRedirects(true)
               .setDefaultRequestProperties(
-                  Collections.singletonMap("Accept-Encoding", "gzip, deflate")
+                  Collections.singletonMap("x-android-selected-protocol", "HTTP/2")
               );
 
       if (httpHeaders != null && !httpHeaders.isEmpty()) {
