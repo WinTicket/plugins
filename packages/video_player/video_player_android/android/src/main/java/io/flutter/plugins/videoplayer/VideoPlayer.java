@@ -9,6 +9,7 @@ import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -103,10 +104,10 @@ final class VideoPlayer {
       DefaultHttpDataSource.Factory httpDataSourceFactory =
           new DefaultHttpDataSource.Factory()
               .setUserAgent("ExoPlayer")
-              .setAllowCrossProtocolRedirects(true)
-              .setDefaultRequestProperties(
-                  Collections.singletonMap("x-android-selected-protocol", "HTTP/2")
-              );
+              .setAllowCrossProtocolRedirects(true);
+
+      System.out.println("あああああああああああああ");
+      System.out.println(httpHeaders);
 
       if (httpHeaders != null && !httpHeaders.isEmpty()) {
         httpDataSourceFactory.setDefaultRequestProperties(httpHeaders);
