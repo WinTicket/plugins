@@ -69,7 +69,7 @@ public class CameraFeatures {
         cameraFeatureFactory.createNoiseReductionFeature(cameraProperties));
     cameraFeatures.setResolution(
         cameraFeatureFactory.createResolutionFeature(
-            cameraProperties, resolutionPreset, cameraProperties.getCameraName()));
+            cameraProperties, resolutionPreset, cameraProperties.getCameraName(), activity));
     cameraFeatures.setZoomLevel(cameraFeatureFactory.createZoomLevelFeature(cameraProperties));
     return cameraFeatures;
   }
