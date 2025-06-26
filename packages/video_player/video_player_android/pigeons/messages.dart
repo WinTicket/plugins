@@ -6,7 +6,7 @@ import 'package:pigeon/pigeon.dart';
 
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
-  dartTestOut: 'test/test_api.dart',
+  dartTestOut: 'test/test_api.g.dart',
   javaOut: 'android/src/main/java/io/flutter/plugins/videoplayer/Messages.java',
   javaOptions: JavaOptions(
     package: 'io.flutter.plugins.videoplayer',
@@ -56,6 +56,12 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class IsPlayingMessage {
+  IsPlayingMessage(this.textureId, this.isPlaying);
+  int textureId;
+  bool isPlaying;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -69,4 +75,5 @@ abstract class AndroidVideoPlayerApi {
   void seekTo(PositionMessage msg);
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
+  IsPlayingMessage isPlaying(TextureMessage msg);
 }

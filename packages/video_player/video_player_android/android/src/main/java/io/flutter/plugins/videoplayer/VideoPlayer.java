@@ -283,6 +283,10 @@ final class VideoPlayer {
     return exoPlayer.getCurrentPosition();
   }
 
+  boolean getIsPlaying() { 
+    return exoPlayer.isPlaying(); 
+  }
+
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
   void sendInitialized() {

@@ -44,6 +44,9 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<Duration> get position async => value.position;
 
   @override
+  Future<bool> get isPlaying async => value.isPlaying;
+
+  @override
   Future<void> seekTo(Duration moment) async {}
 
   @override
