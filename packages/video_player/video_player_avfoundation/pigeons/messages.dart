@@ -57,6 +57,12 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class IsPlayingMessage {
+  IsPlayingMessage(this.textureId, this.isPlaying);
+  int textureId;
+  bool isPlaying;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
@@ -81,4 +87,6 @@ abstract class AVFoundationVideoPlayerApi {
   void pause(TextureMessage msg);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(MixWithOthersMessage msg);
+  @ObjCSelector('isPlaying:')
+  IsPlayingMessage isPlaying(TextureMessage msg);
 }
