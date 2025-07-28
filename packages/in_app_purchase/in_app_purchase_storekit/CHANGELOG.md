@@ -1,3 +1,29 @@
+## NEXT
+
+* Updates minimum Flutter version to 3.0.
+
+## 0.3.4+1
+
+* Updates code for stricter lint checks.
+
+## 0.3.4
+
+* Adds macOS as a supported platform.
+
+## 0.3.3
+
+* Supports adding discount information to AppStorePurchaseParam. 
+* Fixes iOS Promotional Offers bug which prevents them from working.
+
+## 0.3.2+2
+
+* Updates imports for `prefer_relative_imports`.
+
+## 0.3.2+1
+
+* Updates minimum Flutter version to 2.10.
+* Replaces deprecated ThemeData.primaryColor.
+
 ## 0.3.2
 
 * Adds the `identifier` and `type` fields to the `SKProductDiscountWrapper` to reflect the changes in the [SKProductDiscount](https://developer.apple.com/documentation/storekit/skproductdiscount?language=objc) in iOS 12.2.

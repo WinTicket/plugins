@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,7 +115,14 @@ class _FakeClosedCaptionFile extends ClosedCaptionFile {
 }
 
 void main() {
-  void _verifyPlayStateRespondsToLifecycle(
+  late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
+
+  setUp(() {
+    fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+    VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
+  });
+
+  void verifyPlayStateRespondsToLifecycle(
     VideoPlayerController controller, {
     required bool shouldPlayInBackground,
   }) {
@@ -243,13 +251,6 @@ void main() {
   });
 
   group('VideoPlayerController', () {
-    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
-
-    setUp(() {
-      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
-      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
-    });
-
     group('initialize', () {
       test('started app lifecycle observing', () async {
         final VideoPlayerController controller = VideoPlayerController.network(
@@ -257,7 +258,7 @@ void main() {
         );
         await controller.initialize();
         await controller.play();
-        _verifyPlayStateRespondsToLifecycle(controller,
+        verifyPlayStateRespondsToLifecycle(controller,
             shouldPlayInBackground: false);
       });
 
@@ -350,8 +351,21 @@ void main() {
             VideoPlayerController.file(File('a.avi'));
         await controller.initialize();
 
-        expect(fakeVideoPlayerPlatform.dataSources[0].uri, 'file://a.avi');
-      });
+        final String uri = fakeVideoPlayerPlatform.dataSources[0].uri!;
+        expect(uri.startsWith('file:///'), true, reason: 'Actual string: $uri');
+        expect(uri.endsWith('/a.avi'), true, reason: 'Actual string: $uri');
+      }, skip: kIsWeb /* Web does not support file assets. */);
+
+      test('file with special characters', () async {
+        final VideoPlayerController controller =
+            VideoPlayerController.file(File('A #1 Hit?.avi'));
+        await controller.initialize();
+
+        final String uri = fakeVideoPlayerPlatform.dataSources[0].uri!;
+        expect(uri.startsWith('file:///'), true, reason: 'Actual string: $uri');
+        expect(uri.endsWith('/A%20%231%20Hit%3F.avi'), true,
+            reason: 'Actual string: $uri');
+      }, skip: kIsWeb /* Web does not support file assets. */);
 
       test('successful initialize on controller with error clears error',
           () async {
@@ -398,7 +412,7 @@ void main() {
       await controller.initialize();
       await controller.dispose();
 
-      expect(() async => await controller.dispose(), returnsNormally);
+      expect(() async => controller.dispose(), returnsNormally);
     });
 
     test('play', () async {
@@ -1010,44 +1024,37 @@ void main() {
   });
 
   group('VideoPlayerOptions', () {
-    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
-
-    setUp(() {
-      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
-      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
-    });
-
     test('setMixWithOthers', () async {
-      final VideoPlayerController controller = VideoPlayerController.file(
-          File(''),
+      final VideoPlayerController controller = VideoPlayerController.network(
+          'https://127.0.0.1',
           videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true));
       await controller.initialize();
       expect(controller.videoPlayerOptions!.mixWithOthers, true);
     });
 
     test('true allowBackgroundPlayback continues playback', () async {
-      final VideoPlayerController controller = VideoPlayerController.file(
-        File(''),
+      final VideoPlayerController controller = VideoPlayerController.network(
+        'https://127.0.0.1',
         videoPlayerOptions: VideoPlayerOptions(
           allowBackgroundPlayback: true,
         ),
       );
       await controller.initialize();
       await controller.play();
-      _verifyPlayStateRespondsToLifecycle(
+      verifyPlayStateRespondsToLifecycle(
         controller,
         shouldPlayInBackground: true,
       );
     });
 
     test('false allowBackgroundPlayback pauses playback', () async {
-      final VideoPlayerController controller = VideoPlayerController.file(
-        File(''),
+      final VideoPlayerController controller = VideoPlayerController.network(
+        'https://127.0.0.1',
         videoPlayerOptions: VideoPlayerOptions(),
       );
       await controller.initialize();
       await controller.play();
-      _verifyPlayStateRespondsToLifecycle(
+      verifyPlayStateRespondsToLifecycle(
         controller,
         shouldPlayInBackground: false,
       );
@@ -1154,6 +1161,11 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) async {
     calls.add('setMixWithOthers');
+  }
+
+  @override
+  Widget buildView(int textureId) {
+    return Texture(textureId: textureId);
   }
 }
 

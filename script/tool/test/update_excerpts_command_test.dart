@@ -12,7 +12,7 @@ import 'package:flutter_plugin_tools/src/update_excerpts_command.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'common/plugin_command_test.mocks.dart';
+import 'common/package_command_test.mocks.dart';
 import 'mocks.dart';
 import 'util.dart';
 
@@ -42,7 +42,7 @@ void main() {
 
   test('runs pub get before running scripts', () async {
     final RepositoryPackage package = createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
     final Directory example = getExampleDir(package);
 
     await runCapturingPrint(runner, <String>['update-excerpts']);
@@ -69,7 +69,7 @@ void main() {
 
   test('runs when config is present', () async {
     final RepositoryPackage package = createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
     final Directory example = getExampleDir(package);
 
     final List<String> output =
@@ -128,7 +128,7 @@ void main() {
 
   test('restores pubspec even if running the script fails', () async {
     final RepositoryPackage package = createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
     processRunner.mockProcessesForExecutable['dart'] = <io.Process>[
       MockProcess(exitCode: 1), // dart pub get
@@ -159,7 +159,7 @@ void main() {
 
   test('fails if pub get fails', () async {
     createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
     processRunner.mockProcessesForExecutable['dart'] = <io.Process>[
       MockProcess(exitCode: 1), // dart pub get
@@ -183,7 +183,7 @@ void main() {
 
   test('fails if extraction fails', () async {
     createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
     processRunner.mockProcessesForExecutable['dart'] = <io.Process>[
       MockProcess(), // dart pub get
@@ -208,7 +208,7 @@ void main() {
 
   test('fails if injection fails', () async {
     createFakePlugin('a_package', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
     processRunner.mockProcessesForExecutable['dart'] = <io.Process>[
       MockProcess(), // dart pub get
@@ -232,11 +232,11 @@ void main() {
         ]));
   });
 
-  test('fails if files are changed with --fail-on-change', () async {
+  test('fails if READMEs are changed with --fail-on-change', () async {
     createFakePlugin('a_plugin', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
-    const String changedFilePath = 'packages/a_plugin/linux/foo_plugin.cc';
+    const String changedFilePath = 'packages/a_plugin/README.md';
     processRunner.mockProcessesForExecutable['git'] = <io.Process>[
       MockProcess(stdout: changedFilePath),
     ];
@@ -253,12 +253,33 @@ void main() {
         output,
         containsAllInOrder(<Matcher>[
           contains('README.md is out of sync with its source excerpts'),
+          contains('Snippets are out of sync in the following files: '
+              'packages/a_plugin/README.md'),
+        ]));
+  });
+
+  test('passes if unrelated files are changed with --fail-on-change', () async {
+    createFakePlugin('a_plugin', packagesDir,
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
+
+    const String changedFilePath = 'packages/a_plugin/linux/CMakeLists.txt';
+    processRunner.mockProcessesForExecutable['git'] = <io.Process>[
+      MockProcess(stdout: changedFilePath),
+    ];
+
+    final List<String> output = await runCapturingPrint(
+        runner, <String>['update-excerpts', '--fail-on-change']);
+
+    expect(
+        output,
+        containsAllInOrder(<Matcher>[
+          contains('Ran for 1 package(s)'),
         ]));
   });
 
   test('fails if git ls-files fails', () async {
     createFakePlugin('a_plugin', packagesDir,
-        extraFiles: <String>['example/build.excerpt.yaml']);
+        extraFiles: <String>[kReadmeExcerptConfigPath]);
 
     processRunner.mockProcessesForExecutable['git'] = <io.Process>[
       MockProcess(exitCode: 1)
