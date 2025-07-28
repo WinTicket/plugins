@@ -118,6 +118,20 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
+  Future<Duration> getDuration(int textureId) async {
+    final DurationMessage response =
+        await _api.duration(TextureMessage(textureId: textureId));
+    return Duration(milliseconds: response.duration);
+  }
+
+  @override
+  Future<bool> getIsPlaying(int textureId) async {
+    final IsPlayingMessage response =
+        await _api.isPlaying(TextureMessage(textureId: textureId));
+    return response.isPlaying;
+  }
+
+  @override
   Stream<VideoEvent> videoEventsFor(int textureId) {
     return _eventChannelFor(textureId)
         .receiveBroadcastStream()
@@ -162,6 +176,19 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   Future<void> setMixWithOthers(bool mixWithOthers) {
     return _api
         .setMixWithOthers(MixWithOthersMessage(mixWithOthers: mixWithOthers));
+  }
+
+  @override
+  Future<void> setBuffer(int textureId, Buffer buffer) {
+    return _api.setBuffer(
+      BufferMessage(
+        minBufferMs: buffer.minBufferMs,
+        maxBufferMs: buffer.maxBufferMs,
+        bufferForPlaybackMs: buffer.bufferForPlaybackMs,
+        bufferForPlaybackAfterRebufferMs:
+            buffer.bufferForPlaybackAfterRebufferMs,
+      ),
+    );
   }
 
   EventChannel _eventChannelFor(int textureId) {
