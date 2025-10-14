@@ -69,6 +69,13 @@ class BufferMessage {
   int? bufferForPlaybackAfterRebufferMs;
 }
 
+class MaxVideoResolutionMessage {
+  MaxVideoResolutionMessage(this.textureId, this.width, this.height);
+  int textureId;
+  int width;
+  int height;
+}
+
 class IsPlayingMessage {
   IsPlayingMessage(this.textureId, this.isPlaying);
   int textureId;
@@ -90,5 +97,6 @@ abstract class AndroidVideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
 }

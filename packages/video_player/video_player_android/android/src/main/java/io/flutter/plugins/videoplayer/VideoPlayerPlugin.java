@@ -18,6 +18,7 @@ import io.flutter.plugins.videoplayer.Messages.CreateMessage;
 import io.flutter.plugins.videoplayer.Messages.DurationMessage;
 import io.flutter.plugins.videoplayer.Messages.IsPlayingMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
+import io.flutter.plugins.videoplayer.Messages.MaxVideoResolutionMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
 import io.flutter.plugins.videoplayer.Messages.PositionMessage;
@@ -223,6 +224,21 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
         ? DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
         : toIntExact(arg.getBufferForPlaybackAfterRebufferMs());
     options.buffer = buffer;
+  }
+
+  @Override
+  public void setMaxVideoResolution(MaxVideoResolutionMessage arg) {
+    if (arg == null) {
+      return;
+    }
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    if (player != null) {
+      long rawWidth = arg.getWidth() == null ? 0 : arg.getWidth();
+      long rawHeight = arg.getHeight() == null ? 0 : arg.getHeight();
+      int width = rawWidth > Integer.MAX_VALUE ? Integer.MAX_VALUE : toIntExact(rawWidth);
+      int height = rawHeight > Integer.MAX_VALUE ? Integer.MAX_VALUE : toIntExact(rawHeight);
+      player.setMaxVideoResolution(width, height);
+    }
   }
 
   private interface KeyForAssetFn {

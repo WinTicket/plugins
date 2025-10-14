@@ -22,6 +22,7 @@ abstract class TestHostVideoPlayerApi {
   void pause(TextureMessage arg);
   void setMixWithOthers(MixWithOthersMessage arg);
   void setBuffer(BufferMessage arg);
+  void setMaxVideoResolution(MaxVideoResolutionMessage arg);
   IsPlayingMessage isPlaying(TextureMessage arg);
   static void setup(TestHostVideoPlayerApi? api) {
     {
@@ -187,6 +188,20 @@ abstract class TestHostVideoPlayerApi {
           assert(message != null, 'Argument for dev.flutter.pigeon.VideoPlayerApi.setBuffer was null. Expected BufferMessage.');
           final BufferMessage input = BufferMessage.decode(message!);
           api.setBuffer(input);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      const BasicMessageChannel<Object?> channel =
+          BasicMessageChannel<Object?>('dev.flutter.pigeon.VideoPlayerApi.setMaxVideoResolution', StandardMessageCodec());
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.VideoPlayerApi.setMaxVideoResolution was null. Expected MaxVideoResolutionMessage.');
+          final MaxVideoResolutionMessage input = MaxVideoResolutionMessage.decode(message!);
+          api.setMaxVideoResolution(input);
           return <Object?, Object?>{};
         });
       }

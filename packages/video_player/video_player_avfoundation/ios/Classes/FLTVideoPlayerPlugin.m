@@ -47,6 +47,7 @@
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers;
+- (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -383,6 +384,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   currentItem.preferredForwardBufferDuration = buffer;
 }
 
+- (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height {
+  AVPlayerItem *currentItem = self.player.currentItem;
+  if (!currentItem) {
+    return;
+  }
+  CGFloat w = width != nil ? width.doubleValue : 0.0;
+  CGFloat h = height != nil ? height.doubleValue : 0.0;
+  if (w > 0.0 && h > 0.0) {
+    currentItem.preferredMaximumResolution = CGSizeMake(w, h);
+  } else {
+    currentItem.preferredMaximumResolution = CGSizeZero;
+  }
+}
+
 - (BOOL)getLatestIsPlaying {
   return _player.rate > 0;
 }
@@ -690,6 +705,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)setBuffer:(FLTBufferMessage *)input error:(FlutterError *_Nullable *_Nonnull)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   [player setBuffer:input.second.doubleValue];
+}
+
+- (void)setMaxVideoResolution:(FLTMaxVideoResolutionMessage *)input
+                     error:(FlutterError *_Nullable *_Nonnull)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player setPreferredMaximumResolutionWidth:input.width height:input.height];
 }
 
 - (FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)input error:(FlutterError **)error {

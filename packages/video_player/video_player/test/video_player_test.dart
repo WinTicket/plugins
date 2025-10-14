@@ -55,6 +55,9 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<void> setPlaybackSpeed(double speed) async {}
 
   @override
+  Future<void> setMaxVideoResolution(int? width, int? height) async {}
+
+  @override
   Future<void> initialize() async {}
 
   @override
@@ -1054,6 +1057,34 @@ void main() {
     });
   });
 
+  group('setMaxVideoResolution', () {
+    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
+
+    setUp(() {
+      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
+    });
+
+    test('forwards sanitized resolution', () async {
+      final VideoPlayerController controller = VideoPlayerController.file(File(''));
+      await controller.initialize();
+      await controller.setMaxVideoResolution(1280, 720);
+      expect(fakeVideoPlayerPlatform.calls.contains('setMaxVideoResolution'), isTrue);
+      expect(fakeVideoPlayerPlatform.lastMaxVideoWidth, 1280);
+      expect(fakeVideoPlayerPlatform.lastMaxVideoHeight, 720);
+      await controller.dispose();
+    });
+
+    test('null resolution resets limit', () async {
+      final VideoPlayerController controller = VideoPlayerController.file(File(''));
+      await controller.initialize();
+      await controller.setMaxVideoResolution(null, null);
+      expect(fakeVideoPlayerPlatform.lastMaxVideoWidth, 0);
+      expect(fakeVideoPlayerPlatform.lastMaxVideoHeight, 0);
+      await controller.dispose();
+    });
+  });
+
   test('VideoProgressColors', () {
     const Color playedColor = Color.fromRGBO(0, 0, 255, 0.75);
     const Color bufferedColor = Color.fromRGBO(0, 255, 0, 0.5);
@@ -1079,6 +1110,8 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   bool forceInitError = false;
   int nextTextureId = 0;
   final Map<int, Duration> _positions = <int, Duration>{};
+  int? lastMaxVideoWidth;
+  int? lastMaxVideoHeight;
 
   @override
   Future<int?> create(DataSource dataSource) async {
@@ -1154,6 +1187,13 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) async {
     calls.add('setMixWithOthers');
+  }
+
+  @override
+  Future<void> setMaxVideoResolution(int textureId, int? width, int? height) async {
+    calls.add('setMaxVideoResolution');
+    lastMaxVideoWidth = width;
+    lastMaxVideoHeight = height;
   }
 }
 
