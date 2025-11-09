@@ -1,33 +1,30 @@
 group 'io.flutter.plugins.videoplayer'
 version '1.0-SNAPSHOT'
-def args = ["-Xlint:deprecation","-Xlint:unchecked","-Werror"]
 
 buildscript {
+    ext.kotlin_version = "1.8.22"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.2.1'
+        classpath("com.android.tools.build:gradle:8.7.0")
     }
 }
 
-rootProject.allprojects {
+allprojects {
     repositories {
         google()
         mavenCentral()
     }
 }
 
-project.getTasks().withType(JavaCompile){
-    options.compilerArgs.addAll(args)
-}
-
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 31
+    namespace 'io.flutter.plugins.videoplayer'
+    compileSdkVersion 34
 
     defaultConfig {
         minSdkVersion 16
