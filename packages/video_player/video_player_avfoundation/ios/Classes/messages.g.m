@@ -78,6 +78,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 + (FLTIsPlayingMessage *)fromMap:(NSDictionary *)dict;
 - (NSDictionary *)toMap;
 @end
+@interface FLTPipStatusMessage ()
++ (FLTPipStatusMessage *)fromMap:(NSDictionary *)dict;
+- (NSDictionary *)toMap;
+@end
 
 @implementation FLTTextureMessage
 + (instancetype)makeWithTextureId:(NSNumber *)textureId {
@@ -335,6 +339,27 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 }
 @end
 
+@implementation FLTPipStatusMessage
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    value:(NSNumber *)value {
+  FLTPipStatusMessage* pigeonResult = [[FLTPipStatusMessage alloc] init];
+  pigeonResult.textureId = textureId;
+  pigeonResult.value = value;
+  return pigeonResult;
+}
++ (FLTPipStatusMessage *)fromMap:(NSDictionary *)dict {
+  FLTPipStatusMessage *pigeonResult = [[FLTPipStatusMessage alloc] init];
+  pigeonResult.textureId = GetNullableObject(dict, @"textureId");
+  NSAssert(pigeonResult.textureId != nil, @"");
+  pigeonResult.value = GetNullableObject(dict, @"value");
+  NSAssert(pigeonResult.value != nil, @"");
+  return pigeonResult;
+}
+- (NSDictionary *)toMap {
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.textureId ? self.textureId : [NSNull null]), @"textureId", (self.value ? self.value : [NSNull null]), @"value", nil];
+}
+@end
+
 @interface FLTAVFoundationVideoPlayerApiCodecReader : FlutterStandardReader
 @end
 @implementation FLTAVFoundationVideoPlayerApiCodecReader
@@ -374,12 +399,15 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
     case 138:     
       return [FLTVolumeMessage fromMap:[self readValue]];
     
-    case 139:     
+    case 139:
       return [FLTMaxVideoResolutionMessage fromMap:[self readValue]];
-    
-    default:    
+
+    case 140:
+      return [FLTPipStatusMessage fromMap:[self readValue]];
+
+    default:
       return [super readValueOfType:type];
-    
+
   }
 }
 @end
@@ -436,7 +464,11 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
   if ([value isKindOfClass:[FLTMaxVideoResolutionMessage class]]) {
     [self writeByte:139];
     [self writeValue:[value toMap]];
-  } else 
+  } else
+  if ([value isKindOfClass:[FLTPipStatusMessage class]]) {
+    [self writeByte:140];
+    [self writeValue:[value toMap]];
+  } else
 {
     [super writeValue:value];
   }
@@ -777,6 +809,126 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
         FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
         FlutterError *error;
         FLTIsPlayingMessage *output = [api isPlaying:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(enablePictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(enablePictureInPicture:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api enablePictureInPicture:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(disablePictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(disablePictureInPicture:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api disablePictureInPicture:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(startPictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(startPictureInPicture:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api startPictureInPicture:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(stopPictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(stopPictureInPicture:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api stopPictureInPicture:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(isPictureInPictureSupported:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(isPictureInPictureSupported:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FLTPipStatusMessage *output = [api isPictureInPictureSupported:arg_msg error:&error];
+        callback(wrapResult(output, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(isPictureInPictureActive:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(isPictureInPictureActive:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        FLTPipStatusMessage *output = [api isPictureInPictureActive:arg_msg error:&error];
         callback(wrapResult(output, error));
       }];
     }

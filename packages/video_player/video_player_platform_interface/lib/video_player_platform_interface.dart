@@ -123,6 +123,42 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   Future<bool> getIsPlaying(int textureId) {
     throw UnimplementedError('isPlaying() has not been implemented.');
   }
+
+  /// Enables Picture-in-Picture mode for the video player.
+  Future<void> enablePictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'enablePictureInPicture() has not been implemented.');
+  }
+
+  /// Disables Picture-in-Picture mode for the video player.
+  Future<void> disablePictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'disablePictureInPicture() has not been implemented.');
+  }
+
+  /// Starts Picture-in-Picture mode.
+  Future<void> startPictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'startPictureInPicture() has not been implemented.');
+  }
+
+  /// Stops Picture-in-Picture mode.
+  Future<void> stopPictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'stopPictureInPicture() has not been implemented.');
+  }
+
+  /// Returns whether Picture-in-Picture is supported on this device.
+  Future<bool> isPictureInPictureSupported(int textureId) {
+    throw UnimplementedError(
+        'isPictureInPictureSupported() has not been implemented.');
+  }
+
+  /// Returns whether Picture-in-Picture is currently active.
+  Future<bool> isPictureInPictureActive(int textureId) {
+    throw UnimplementedError(
+        'isPictureInPictureActive() has not been implemented.');
+  }
 }
 
 /// バッファを調整するための各パラメーター
@@ -351,6 +387,15 @@ enum VideoEventType {
 
   /// An unknown event has been received.
   unknown,
+
+  /// Picture-in-Picture has started.
+  pipStarted,
+
+  /// Picture-in-Picture has stopped.
+  pipStopped,
+
+  /// The system requests restoring the user interface from Picture-in-Picture.
+  pipRestoreUserInterface,
 }
 
 /// Describes a discrete segment of time within a video using a [start] and

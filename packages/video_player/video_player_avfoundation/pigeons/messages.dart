@@ -88,6 +88,12 @@ class IsPlayingMessage {
   bool isPlaying;
 }
 
+class PipStatusMessage {
+  PipStatusMessage(this.textureId, this.value);
+  int textureId;
+  bool value;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
@@ -123,4 +129,16 @@ abstract class AVFoundationVideoPlayerApi {
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   @ObjCSelector('isPlaying:')
   IsPlayingMessage isPlaying(TextureMessage msg);
+  @ObjCSelector('enablePictureInPicture:')
+  void enablePictureInPicture(TextureMessage msg);
+  @ObjCSelector('disablePictureInPicture:')
+  void disablePictureInPicture(TextureMessage msg);
+  @ObjCSelector('startPictureInPicture:')
+  void startPictureInPicture(TextureMessage msg);
+  @ObjCSelector('stopPictureInPicture:')
+  void stopPictureInPicture(TextureMessage msg);
+  @ObjCSelector('isPictureInPictureSupported:')
+  PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
+  @ObjCSelector('isPictureInPictureActive:')
+  PipStatusMessage isPictureInPictureActive(TextureMessage msg);
 }

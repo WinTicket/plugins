@@ -319,6 +319,31 @@ class IsPlayingMessage {
   }
 }
 
+class PipStatusMessage {
+  PipStatusMessage({
+    required this.textureId,
+    required this.value,
+  });
+
+  int textureId;
+  bool value;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['value'] = value;
+    return pigeonMap;
+  }
+
+  static PipStatusMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipStatusMessage(
+      textureId: pigeonMap['textureId']! as int,
+      value: pigeonMap['value']! as bool,
+    );
+  }
+}
+
 class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   const _AVFoundationVideoPlayerApiCodec();
   @override
@@ -370,7 +395,11 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
     if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else 
+    } else
+    if (value is PipStatusMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -378,45 +407,48 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128:       
+      case 128:
         return BufferMessage.decode(readValue(buffer)!);
-      
-      case 129:       
+
+      case 129:
         return CreateMessage.decode(readValue(buffer)!);
-      
-      case 130:       
+
+      case 130:
         return DurationMessage.decode(readValue(buffer)!);
-      
-      case 131:       
+
+      case 131:
         return IsPlayingMessage.decode(readValue(buffer)!);
-      
-      case 132:       
+
+      case 132:
         return LoopingMessage.decode(readValue(buffer)!);
-      
-      case 133:       
+
+      case 133:
         return MixWithOthersMessage.decode(readValue(buffer)!);
-      
-      case 134:       
+
+      case 134:
         return PlaybackSpeedMessage.decode(readValue(buffer)!);
-      
-      case 135:       
+
+      case 135:
         return PositionMessage.decode(readValue(buffer)!);
-      
-      case 136:       
+
+      case 136:
         return StartMessage.decode(readValue(buffer)!);
-      
-      case 137:       
+
+      case 137:
         return TextureMessage.decode(readValue(buffer)!);
-      
-      case 138:       
+
+      case 138:
         return VolumeMessage.decode(readValue(buffer)!);
- 
-      case 139:       
+
+      case 139:
         return MaxVideoResolutionMessage.decode(readValue(buffer)!);
 
-      default:      
+      case 140:
+        return PipStatusMessage.decode(readValue(buffer)!);
+
+      default:
         return super.readValueOfType(type, buffer);
-      
+
     }
   }
 }
@@ -806,6 +838,148 @@ class AVFoundationVideoPlayerApi {
       );
     } else {
       return (replyMap['result'] as IsPlayingMessage?)!;
+    }
+  }
+
+  Future<void> enablePictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> disablePictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> startPictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> stopPictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<PipStatusMessage> isPictureInPictureSupported(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else if (replyMap['result'] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyMap['result'] as PipStatusMessage?)!;
+    }
+  }
+
+  Future<PipStatusMessage> isPictureInPictureActive(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else if (replyMap['result'] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyMap['result'] as PipStatusMessage?)!;
     }
   }
 }

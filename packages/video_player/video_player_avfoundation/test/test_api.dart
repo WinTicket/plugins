@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart' show WriteBuffer, ReadBuffer;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/src/messages.g.dart';
+import 'package:video_player_avfoundation/src/messages.g.dart';
 
 class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
   const _TestHostVideoPlayerApiCodec();
@@ -65,7 +65,11 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
     if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else 
+    } else
+    if (value is PipStatusMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -73,43 +77,46 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128:       
+      case 128:
         return BufferMessage.decode(readValue(buffer)!);
-      
-      case 129:       
+
+      case 129:
         return CreateMessage.decode(readValue(buffer)!);
-      
-      case 130:       
+
+      case 130:
         return DurationMessage.decode(readValue(buffer)!);
-      
-      case 131:       
+
+      case 131:
         return IsPlayingMessage.decode(readValue(buffer)!);
-      
-      case 132:       
+
+      case 132:
         return LoopingMessage.decode(readValue(buffer)!);
-      
-      case 133:       
+
+      case 133:
         return MixWithOthersMessage.decode(readValue(buffer)!);
-      
-      case 134:       
+
+      case 134:
         return PlaybackSpeedMessage.decode(readValue(buffer)!);
-      
-      case 135:       
+
+      case 135:
         return PositionMessage.decode(readValue(buffer)!);
-      
-      case 136:       
+
+      case 136:
         return StartMessage.decode(readValue(buffer)!);
-      
-      case 137:       
+
+      case 137:
         return TextureMessage.decode(readValue(buffer)!);
-      
-      case 138:       
+
+      case 138:
         return VolumeMessage.decode(readValue(buffer)!);
-      
-      case 139:       
+
+      case 139:
         return MaxVideoResolutionMessage.decode(readValue(buffer)!);
-      
-      default:      
+
+      case 140:
+        return PipStatusMessage.decode(readValue(buffer)!);
+
+      default:
         return super.readValueOfType(type, buffer);
 
     }
@@ -134,6 +141,12 @@ abstract class TestHostVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
+  void enablePictureInPicture(TextureMessage msg);
+  void disablePictureInPicture(TextureMessage msg);
+  void startPictureInPicture(TextureMessage msg);
+  void stopPictureInPicture(TextureMessage msg);
+  PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
+  PipStatusMessage isPictureInPictureActive(TextureMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
@@ -384,6 +397,102 @@ abstract class TestHostVideoPlayerApi {
           final TextureMessage? arg_msg = (args[0] as TextureMessage?);
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPlaying was null, expected non-null TextureMessage.');
           final IsPlayingMessage output = api.isPlaying(arg_msg!);
+          return <Object?, Object?>{'result': output};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture was null, expected non-null TextureMessage.');
+          api.enablePictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture was null, expected non-null TextureMessage.');
+          api.disablePictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture was null, expected non-null TextureMessage.');
+          api.startPictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture was null, expected non-null TextureMessage.');
+          api.stopPictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported was null, expected non-null TextureMessage.');
+          final PipStatusMessage output = api.isPictureInPictureSupported(arg_msg!);
+          return <Object?, Object?>{'result': output};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive was null, expected non-null TextureMessage.');
+          final PipStatusMessage output = api.isPictureInPictureActive(arg_msg!);
           return <Object?, Object?>{'result': output};
         });
       }

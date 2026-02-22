@@ -68,7 +68,7 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void seekTo(PositionMessage arg) {
+  Future<void> seekTo(PositionMessage arg) async {
     log.add('seekTo');
     positionMessage = arg;
   }
@@ -89,6 +89,75 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   void setPlaybackSpeed(PlaybackSpeedMessage arg) {
     log.add('setPlaybackSpeed');
     playbackSpeedMessage = arg;
+  }
+
+  @override
+  DurationMessage duration(TextureMessage arg) {
+    log.add('duration');
+    textureMessage = arg;
+    return DurationMessage(textureId: arg.textureId, duration: 10000);
+  }
+
+  @override
+  StartMessage start(TextureMessage arg) {
+    log.add('start');
+    textureMessage = arg;
+    return StartMessage(textureId: arg.textureId, start: 0);
+  }
+
+  @override
+  void setBuffer(BufferMessage arg) {
+    log.add('setBuffer');
+  }
+
+  @override
+  void setMaxVideoResolution(MaxVideoResolutionMessage arg) {
+    log.add('setMaxVideoResolution');
+  }
+
+  @override
+  IsPlayingMessage isPlaying(TextureMessage arg) {
+    log.add('isPlaying');
+    textureMessage = arg;
+    return IsPlayingMessage(textureId: arg.textureId, isPlaying: true);
+  }
+
+  @override
+  void enablePictureInPicture(TextureMessage arg) {
+    log.add('enablePictureInPicture');
+    textureMessage = arg;
+  }
+
+  @override
+  void disablePictureInPicture(TextureMessage arg) {
+    log.add('disablePictureInPicture');
+    textureMessage = arg;
+  }
+
+  @override
+  void startPictureInPicture(TextureMessage arg) {
+    log.add('startPictureInPicture');
+    textureMessage = arg;
+  }
+
+  @override
+  void stopPictureInPicture(TextureMessage arg) {
+    log.add('stopPictureInPicture');
+    textureMessage = arg;
+  }
+
+  @override
+  PipStatusMessage isPictureInPictureSupported(TextureMessage arg) {
+    log.add('isPictureInPictureSupported');
+    textureMessage = arg;
+    return PipStatusMessage(textureId: arg.textureId, value: true);
+  }
+
+  @override
+  PipStatusMessage isPictureInPictureActive(TextureMessage arg) {
+    log.add('isPictureInPictureActive');
+    textureMessage = arg;
+    return PipStatusMessage(textureId: arg.textureId, value: false);
   }
 }
 
@@ -223,14 +292,55 @@ void main() {
       await player.seekTo(1, const Duration(milliseconds: 12345));
       expect(log.log.last, 'seekTo');
       expect(log.positionMessage?.textureId, 1);
+      // seekTo adds startDuration (0) to position
       expect(log.positionMessage?.position, 12345);
     });
 
     test('getPosition', () async {
       final Duration position = await player.getPosition(1);
-      expect(log.log.last, 'position');
+      // getPosition calls position then start, so last log is 'start'
+      expect(log.log, contains('position'));
       expect(log.textureMessage?.textureId, 1);
+      // position returns 234, start returns 0, so result is 234 - 0 = 234
       expect(position, const Duration(milliseconds: 234));
+    });
+
+    test('enablePictureInPicture', () async {
+      await player.enablePictureInPicture(1);
+      expect(log.log.last, 'enablePictureInPicture');
+      expect(log.textureMessage?.textureId, 1);
+    });
+
+    test('disablePictureInPicture', () async {
+      await player.disablePictureInPicture(1);
+      expect(log.log.last, 'disablePictureInPicture');
+      expect(log.textureMessage?.textureId, 1);
+    });
+
+    test('startPictureInPicture', () async {
+      await player.startPictureInPicture(1);
+      expect(log.log.last, 'startPictureInPicture');
+      expect(log.textureMessage?.textureId, 1);
+    });
+
+    test('stopPictureInPicture', () async {
+      await player.stopPictureInPicture(1);
+      expect(log.log.last, 'stopPictureInPicture');
+      expect(log.textureMessage?.textureId, 1);
+    });
+
+    test('isPictureInPictureSupported', () async {
+      final bool supported = await player.isPictureInPictureSupported(1);
+      expect(log.log.last, 'isPictureInPictureSupported');
+      expect(log.textureMessage?.textureId, 1);
+      expect(supported, true);
+    });
+
+    test('isPictureInPictureActive', () async {
+      final bool active = await player.isPictureInPictureActive(1);
+      expect(log.log.last, 'isPictureInPictureActive');
+      expect(log.textureMessage?.textureId, 1);
+      expect(active, false);
     });
 
     test('videoEventsFor', () async {
@@ -299,6 +409,36 @@ void main() {
                     }),
                     (ByteData? data) {});
 
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'pipStarted',
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'pipStopped',
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'pipRestoreUserInterface',
+                    }),
+                    (ByteData? data) {});
+
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
           } else if (methodCall.method == 'cancel') {
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
@@ -330,6 +470,9 @@ void main() {
                 ]),
             VideoEvent(eventType: VideoEventType.bufferingStart),
             VideoEvent(eventType: VideoEventType.bufferingEnd),
+            VideoEvent(eventType: VideoEventType.pipStarted),
+            VideoEvent(eventType: VideoEventType.pipStopped),
+            VideoEvent(eventType: VideoEventType.pipRestoreUserInterface),
           ]));
     });
   });

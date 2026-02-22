@@ -5,6 +5,7 @@
 #import "FLTVideoPlayerPlugin.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
 
 #import "AVAssetTrackUtils.h"
@@ -33,7 +34,7 @@
 }
 @end
 
-@interface FLTVideoPlayer : NSObject <FlutterTexture, FlutterStreamHandler>
+@interface FLTVideoPlayer : NSObject <FlutterTexture, FlutterStreamHandler, AVPictureInPictureControllerDelegate>
 @property(readonly, nonatomic) AVPlayer *player;
 @property(readonly, nonatomic) AVPlayerItemVideoOutput *videoOutput;
 @property(readonly, nonatomic) CADisplayLink *displayLink;
@@ -48,6 +49,8 @@
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers;
 - (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
+@property(nonatomic, strong) AVPictureInPictureController *pipController;
+@property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -402,6 +405,112 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return _player.rate > 0;
 }
 
+#pragma mark - Picture-in-Picture
+
+- (void)setupPictureInPicture {
+  if (@available(iOS 15.0, *)) {
+    if (_pipController) {
+      return;
+    }
+    // Create a hidden AVPlayerLayer for PiP (required for texture-based rendering)
+    _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
+    _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+    _pipPlayerLayer.hidden = YES;
+
+    // Add the layer to the key window so PiP can use it
+    UIWindow *keyWindow = nil;
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+      if ([scene isKindOfClass:[UIWindowScene class]]) {
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+          if (window.isKeyWindow) {
+            keyWindow = window;
+            break;
+          }
+        }
+      }
+      if (keyWindow) break;
+    }
+    if (keyWindow) {
+      [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
+    }
+
+    if ([AVPictureInPictureController isPictureInPictureSupported]) {
+      _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
+      _pipController.delegate = self;
+    }
+  }
+}
+
+- (void)tearDownPictureInPicture {
+  if (_pipController) {
+    if ([_pipController isPictureInPictureActive]) {
+      [_pipController stopPictureInPicture];
+    }
+    _pipController.delegate = nil;
+    _pipController = nil;
+  }
+  if (_pipPlayerLayer) {
+    [_pipPlayerLayer removeFromSuperlayer];
+    _pipPlayerLayer = nil;
+  }
+}
+
+- (void)enablePictureInPicture {
+  [self setupPictureInPicture];
+}
+
+- (void)disablePictureInPicture {
+  [self tearDownPictureInPicture];
+}
+
+- (void)startPictureInPicture {
+  if (_pipController && ![_pipController isPictureInPictureActive]) {
+    [_pipController startPictureInPicture];
+  }
+}
+
+- (void)stopPictureInPicture {
+  if (_pipController && [_pipController isPictureInPictureActive]) {
+    [_pipController stopPictureInPicture];
+  }
+}
+
+- (BOOL)isPictureInPictureSupported {
+  if (@available(iOS 15.0, *)) {
+    return [AVPictureInPictureController isPictureInPictureSupported];
+  }
+  return NO;
+}
+
+- (BOOL)isPictureInPictureActive {
+  if (_pipController) {
+    return [_pipController isPictureInPictureActive];
+  }
+  return NO;
+}
+
+#pragma mark - AVPictureInPictureControllerDelegate
+
+- (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipStarted"});
+  }
+}
+
+- (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipStopped"});
+  }
+}
+
+- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipRestoreUserInterface"});
+  }
+  completionHandler(YES);
+}
+
 - (int64_t)duration {
   // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
   // iOSでは
@@ -508,6 +617,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 /// so the channel is going to die or is already dead.
 - (void)disposeSansEventChannel {
   _disposed = YES;
+  [self tearDownPictureInPicture];
   [_displayLink invalidate];
   AVPlayerItem *currentItem = self.player.currentItem;
   [currentItem removeObserver:self forKeyPath:@"status"];
@@ -718,6 +828,38 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
                                                             isPlaying:@([player getLatestIsPlaying])];
   return result;
+}
+
+- (void)enablePictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player enablePictureInPicture];
+}
+
+- (void)disablePictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player disablePictureInPicture];
+}
+
+- (void)startPictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player startPictureInPicture];
+}
+
+- (void)stopPictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player stopPictureInPicture];
+}
+
+- (FLTPipStatusMessage *)isPictureInPictureSupported:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  return [FLTPipStatusMessage makeWithTextureId:input.textureId
+                                          value:@([player isPictureInPictureSupported])];
+}
+
+- (FLTPipStatusMessage *)isPictureInPictureActive:(FLTTextureMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  return [FLTPipStatusMessage makeWithTextureId:input.textureId
+                                          value:@([player isPictureInPictureActive])];
 }
 
 @end
