@@ -841,11 +841,15 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.paused:
+        // Don't pause during PiP — the video should keep playing in the PiP window.
+        if (_controller.value.isPipActive) {
+          return;
+        }
         _wasPlayingBeforePause = _controller.value.isPlaying;
         _controller.pause();
         break;
       case AppLifecycleState.resumed:
-        if (_wasPlayingBeforePause) {
+        if (_wasPlayingBeforePause && !_controller.value.isPipActive) {
           _controller.play();
         }
         break;
