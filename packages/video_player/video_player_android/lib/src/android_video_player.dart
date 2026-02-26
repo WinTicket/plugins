@@ -161,6 +161,10 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.bufferingStart);
         case 'bufferingEnd':
           return VideoEvent(eventType: VideoEventType.bufferingEnd);
+        case 'pipStarted':
+          return VideoEvent(eventType: VideoEventType.pipStarted);
+        case 'pipStopped':
+          return VideoEvent(eventType: VideoEventType.pipStopped);
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
@@ -202,6 +206,30 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
         height: sanitizedHeight,
       ),
     );
+  }
+
+  @override
+  Future<void> startPictureInPicture(int textureId) {
+    return _api.startPictureInPicture(TextureMessage(textureId: textureId));
+  }
+
+  @override
+  Future<void> stopPictureInPicture(int textureId) {
+    return _api.stopPictureInPicture(TextureMessage(textureId: textureId));
+  }
+
+  @override
+  Future<bool> isPictureInPictureSupported(int textureId) async {
+    final PipStatusMessage response = await _api
+        .isPictureInPictureSupported(TextureMessage(textureId: textureId));
+    return response.value;
+  }
+
+  @override
+  Future<bool> isPictureInPictureActive(int textureId) async {
+    final PipStatusMessage response = await _api
+        .isPictureInPictureActive(TextureMessage(textureId: textureId));
+    return response.value;
   }
 
   EventChannel _eventChannelFor(int textureId) {

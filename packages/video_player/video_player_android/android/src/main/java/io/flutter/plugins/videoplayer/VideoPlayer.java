@@ -7,10 +7,17 @@ package io.flutter.plugins.videoplayer;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
+import android.app.Activity;
+import android.app.PictureInPictureParams;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
+import android.util.Rational;
 import android.view.Surface;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -55,13 +62,18 @@ final class VideoPlayer {
   private static final String FORMAT_HLS = "hls";
   private static final String FORMAT_OTHER = "other";
 
+  /** A handler invoked when PiP mode is requested, to notify the plugin of the player ID. */
+  public interface PipRequestHandler {
+    void onPipRequested();
+  }
+
   private ExoPlayer exoPlayer;
 
   private Surface surface;
 
   private final TextureRegistry.SurfaceTextureEntry textureEntry;
 
-  private QueuingEventSink eventSink;
+  QueuingEventSink eventSink;
 
   private final EventChannel eventChannel;
 
@@ -70,6 +82,10 @@ final class VideoPlayer {
   private final VideoPlayerOptions options;
 
   private final DefaultTrackSelector trackSelector;
+
+  @Nullable VideoPlayerCallbacks videoPlayerCallbacks;
+  @Nullable private Activity activity;
+  @Nullable private PipRequestHandler pipRequestHandler;
 
   VideoPlayer(
       Context context,
@@ -328,6 +344,69 @@ final class VideoPlayer {
 
   boolean getIsPlaying() { return exoPlayer.isPlaying(); }
 
+  void setActivity(@Nullable Activity activity) {
+    this.activity = activity;
+  }
+
+  void setPipRequestHandler(@Nullable PipRequestHandler handler) {
+    this.pipRequestHandler = handler;
+  }
+
+  void startPictureInPicture() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      throw new UnsupportedOperationException(
+          "Picture-in-Picture requires API level 26 (Android 8.0) or higher.");
+    }
+    if (activity == null) {
+      throw new IllegalStateException(
+          "Cannot start Picture-in-Picture: no Activity is available.");
+    }
+
+    Format videoFormat = exoPlayer.getVideoFormat();
+    // Default to 16:9 if video format is not available.
+    Rational aspectRatio =
+        (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0)
+            ? new Rational(videoFormat.width, videoFormat.height)
+            : new Rational(16, 9);
+
+    if (pipRequestHandler != null) {
+      pipRequestHandler.onPipRequested();
+    }
+
+    PictureInPictureParams params =
+        new PictureInPictureParams.Builder().setAspectRatio(aspectRatio).build();
+    activity.enterPictureInPictureMode(params);
+  }
+
+  void stopPictureInPicture() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return;
+    }
+    if (activity == null || !activity.isInPictureInPictureMode()) {
+      return;
+    }
+    // Android has no direct "exit PiP" API. Bring the activity to front to restore full screen.
+    Intent intent = new Intent(activity, activity.getClass());
+    intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    activity.startActivity(intent);
+  }
+
+  boolean isPictureInPictureSupported() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || activity == null) {
+      return false;
+    }
+    return activity
+        .getPackageManager()
+        .hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+  }
+
+  boolean isPictureInPictureActive() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || activity == null) {
+      return false;
+    }
+    return activity.isInPictureInPictureMode();
+  }
+
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
   void sendInitialized() {
@@ -363,6 +442,7 @@ final class VideoPlayer {
   }
 
   void dispose() {
+    activity = null;
     if (isInitialized) {
       exoPlayer.stop();
     }

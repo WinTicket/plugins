@@ -170,6 +170,10 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
 
+  /// Whether Picture-in-Picture is currently active.
+  bool _isPipActive = false;
+  bool get isPipActive => _isPipActive;
+
   /// The id of a texture that hasn't been initialized.
   @visibleForTesting
   static const int kUninitializedTextureId = -1;
@@ -242,6 +246,16 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
+          break;
+        case VideoEventType.pipStarted:
+          _isPipActive = true;
+          value = value.copyWith();
+          break;
+        case VideoEventType.pipStopped:
+          _isPipActive = false;
+          value = value.copyWith();
+          break;
+        case VideoEventType.pipRestoreUserInterface:
           break;
         case VideoEventType.unknown:
           break;
@@ -340,6 +354,26 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   void _updatePosition(Duration position) {
     value = value.copyWith(position: position);
+  }
+
+  /// Starts Picture-in-Picture mode.
+  Future<void> startPictureInPicture() {
+    return _platform.startPictureInPicture(_textureId);
+  }
+
+  /// Stops Picture-in-Picture mode.
+  Future<void> stopPictureInPicture() {
+    return _platform.stopPictureInPicture(_textureId);
+  }
+
+  /// Returns whether Picture-in-Picture is supported on this device.
+  Future<bool> isPictureInPictureSupported() {
+    return _platform.isPictureInPictureSupported(_textureId);
+  }
+
+  /// Returns whether Picture-in-Picture is currently active.
+  Future<bool> isPictureInPictureActive() {
+    return _platform.isPictureInPictureActive(_textureId);
   }
 
   @override

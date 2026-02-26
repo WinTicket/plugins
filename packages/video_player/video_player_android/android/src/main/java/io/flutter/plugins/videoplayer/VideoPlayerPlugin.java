@@ -4,12 +4,15 @@
 
 package io.flutter.plugins.videoplayer;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.util.LongSparseArray;
 import io.flutter.FlutterInjector;
 import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
@@ -20,6 +23,7 @@ import io.flutter.plugins.videoplayer.Messages.IsPlayingMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
 import io.flutter.plugins.videoplayer.Messages.MaxVideoResolutionMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
+import io.flutter.plugins.videoplayer.Messages.PipStatusMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
 import io.flutter.plugins.videoplayer.Messages.PositionMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
@@ -28,6 +32,10 @@ import io.flutter.view.TextureRegistry;
 import static java.lang.Math.toIntExact;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.OnPictureInPictureModeChangedProvider;
+import androidx.core.app.PictureInPictureModeChangedInfo;
+import androidx.core.util.Consumer;
 
 import com.google.android.exoplayer2.DefaultLoadControl;
 
@@ -37,11 +45,15 @@ import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
 
 /** Android platform implementation of the VideoPlayerPlugin. */
-public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
+public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidVideoPlayerApi {
   private static final String TAG = "VideoPlayerPlugin";
   private final LongSparseArray<VideoPlayer> videoPlayers = new LongSparseArray<>();
   private FlutterState flutterState;
   private VideoPlayerOptions options = new VideoPlayerOptions();
+  @Nullable private Activity activity;
+  // Tracks which player last requested PiP, so events go to the right player.
+  private long lastPipPlayerId = -1;
+  @Nullable private Consumer<PictureInPictureModeChangedInfo> pipModeChangedListener;
 
   /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
   public VideoPlayerPlugin() {}
@@ -67,6 +79,72 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     flutterState.stopListening(binding.getBinaryMessenger());
     flutterState = null;
     onDestroy();
+  }
+
+  // -- ActivityAware implementation --
+
+  @Override
+  public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+    activity = binding.getActivity();
+    setActivityOnAllPlayers(activity);
+    registerPipModeChangedListener(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    activity = null;
+    setActivityOnAllPlayers(null);
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+    activity = binding.getActivity();
+    setActivityOnAllPlayers(activity);
+    registerPipModeChangedListener(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivity() {
+    activity = null;
+    setActivityOnAllPlayers(null);
+    pipModeChangedListener = null;
+  }
+
+  private void setActivityOnAllPlayers(@Nullable Activity activity) {
+    for (int i = 0; i < videoPlayers.size(); i++) {
+      videoPlayers.valueAt(i).setActivity(activity);
+    }
+  }
+
+  // Registers a listener for PiP mode changes. This requires the host Activity to implement
+  // OnPictureInPictureModeChangedProvider (e.g. FlutterFragmentActivity). If the Activity is a
+  // plain FlutterActivity (which extends Activity directly), PiP mode change events will not be
+  // delivered and the Dart side will not receive pipStarted/pipStopped events.
+  private void registerPipModeChangedListener(@NonNull ActivityPluginBinding binding) {
+    Activity boundActivity = binding.getActivity();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && boundActivity instanceof OnPictureInPictureModeChangedProvider) {
+      OnPictureInPictureModeChangedProvider provider =
+          (OnPictureInPictureModeChangedProvider) boundActivity;
+
+      pipModeChangedListener =
+          info -> {
+            if (lastPipPlayerId < 0) {
+              return;
+            }
+            VideoPlayer player = videoPlayers.get(lastPipPlayerId);
+            if (player == null || player.videoPlayerCallbacks == null) {
+              return;
+            }
+            if (info.isInPictureInPictureMode()) {
+              player.videoPlayerCallbacks.onPictureInPictureStarted();
+            } else {
+              player.videoPlayerCallbacks.onPictureInPictureStopped();
+              lastPipPlayerId = -1;
+            }
+          };
+      provider.addOnPictureInPictureModeChangedListener(pipModeChangedListener);
+    }
   }
 
   private void disposeAllPlayers() {
@@ -128,10 +206,15 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
               httpHeaders,
               options);
     }
+    // Provide Activity reference, PiP event callbacks, and PiP tracking for PiP support.
+    player.setActivity(activity);
+    player.videoPlayerCallbacks = new VideoPlayerEventCallbacks(player.eventSink);
+    final long playerId = handle.id();
+    player.setPipRequestHandler(() -> lastPipPlayerId = playerId);
+
     videoPlayers.put(handle.id(), player);
 
-    TextureMessage result = new TextureMessage.Builder().setTextureId(handle.id()).build();
-    return result;
+    return new TextureMessage.Builder().setTextureId(handle.id()).build();
   }
 
   public void dispose(TextureMessage arg) {
@@ -239,6 +322,36 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
       int height = rawHeight > Integer.MAX_VALUE ? Integer.MAX_VALUE : toIntExact(rawHeight);
       player.setMaxVideoResolution(width, height);
     }
+  }
+
+  @Override
+  public void startPictureInPicture(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.startPictureInPicture();
+  }
+
+  @Override
+  public void stopPictureInPicture(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.stopPictureInPicture();
+  }
+
+  @Override
+  public PipStatusMessage isPictureInPictureSupported(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    return new PipStatusMessage.Builder()
+        .setTextureId(arg.getTextureId())
+        .setValue(player.isPictureInPictureSupported())
+        .build();
+  }
+
+  @Override
+  public PipStatusMessage isPictureInPictureActive(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    return new PipStatusMessage.Builder()
+        .setTextureId(arg.getTextureId())
+        .setValue(player.isPictureInPictureActive())
+        .build();
   }
 
   private interface KeyForAssetFn {

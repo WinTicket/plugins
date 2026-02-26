@@ -302,6 +302,31 @@ class IsPlayingMessage {
   }
 }
 
+class PipStatusMessage {
+  PipStatusMessage({
+    required this.textureId,
+    required this.value,
+  });
+
+  int textureId;
+  bool value;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['value'] = value;
+    return pigeonMap;
+  }
+
+  static PipStatusMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipStatusMessage(
+      textureId: pigeonMap['textureId']! as int,
+      value: pigeonMap['value']! as bool,
+    );
+  }
+}
+
 class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
   const _AndroidVideoPlayerApiCodec();
   @override
@@ -349,7 +374,11 @@ class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else 
+    } else
+    if (value is PipStatusMessage) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -387,10 +416,13 @@ class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
       case 137:       
         return VolumeMessage.decode(readValue(buffer)!);
       
-      case 138:       
+      case 138:
         return MaxVideoResolutionMessage.decode(readValue(buffer)!);
 
-      default:      
+      case 139:
+        return PipStatusMessage.decode(readValue(buffer)!);
+
+      default:
         return super.readValueOfType(type, buffer);
       
     }
@@ -754,6 +786,104 @@ class AndroidVideoPlayerApi {
       );
     } else {
       return (replyMap['result'] as IsPlayingMessage?)!;
+    }
+  }
+
+  Future<void> startPictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> stopPictureInPicture(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AndroidVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<PipStatusMessage> isPictureInPictureSupported(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else if (replyMap['result'] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyMap['result'] as PipStatusMessage?)!;
+    }
+  }
+
+  Future<PipStatusMessage> isPictureInPictureActive(TextureMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else if (replyMap['result'] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyMap['result'] as PipStatusMessage?)!;
     }
   }
 }

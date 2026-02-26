@@ -124,18 +124,6 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('isPlaying() has not been implemented.');
   }
 
-  /// Enables Picture-in-Picture mode for the video player.
-  Future<void> enablePictureInPicture(int textureId) {
-    throw UnimplementedError(
-        'enablePictureInPicture() has not been implemented.');
-  }
-
-  /// Disables Picture-in-Picture mode for the video player.
-  Future<void> disablePictureInPicture(int textureId) {
-    throw UnimplementedError(
-        'disablePictureInPicture() has not been implemented.');
-  }
-
   /// Starts Picture-in-Picture mode.
   Future<void> startPictureInPicture(int textureId) {
     throw UnimplementedError(

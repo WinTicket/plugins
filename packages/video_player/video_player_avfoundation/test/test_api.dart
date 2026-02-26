@@ -141,8 +141,6 @@ abstract class TestHostVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void enablePictureInPicture(TextureMessage msg);
-  void disablePictureInPicture(TextureMessage msg);
   void startPictureInPicture(TextureMessage msg);
   void stopPictureInPicture(TextureMessage msg);
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
@@ -398,38 +396,6 @@ abstract class TestHostVideoPlayerApi {
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPlaying was null, expected non-null TextureMessage.');
           final IsPlayingMessage output = api.isPlaying(arg_msg!);
           return <Object?, Object?>{'result': output};
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture', codec, binaryMessenger: binaryMessenger);
-      if (api == null) {
-        channel.setMockMessageHandler(null);
-      } else {
-        channel.setMockMessageHandler((Object? message) async {
-          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture was null, expected non-null TextureMessage.');
-          api.enablePictureInPicture(arg_msg!);
-          return <Object?, Object?>{};
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture', codec, binaryMessenger: binaryMessenger);
-      if (api == null) {
-        channel.setMockMessageHandler(null);
-      } else {
-        channel.setMockMessageHandler((Object? message) async {
-          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture was null, expected non-null TextureMessage.');
-          api.disablePictureInPicture(arg_msg!);
-          return <Object?, Object?>{};
         });
       }
     }

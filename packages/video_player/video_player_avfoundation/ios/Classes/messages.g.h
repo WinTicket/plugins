@@ -171,8 +171,6 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (void)setMaxVideoResolution:(FLTMaxVideoResolutionMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
 - (nullable FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-- (void)enablePictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-- (void)disablePictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)startPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)stopPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.

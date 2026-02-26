@@ -123,18 +123,6 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void enablePictureInPicture(TextureMessage arg) {
-    log.add('enablePictureInPicture');
-    textureMessage = arg;
-  }
-
-  @override
-  void disablePictureInPicture(TextureMessage arg) {
-    log.add('disablePictureInPicture');
-    textureMessage = arg;
-  }
-
-  @override
   void startPictureInPicture(TextureMessage arg) {
     log.add('startPictureInPicture');
     textureMessage = arg;
@@ -303,18 +291,6 @@ void main() {
       expect(log.textureMessage?.textureId, 1);
       // position returns 234, start returns 0, so result is 234 - 0 = 234
       expect(position, const Duration(milliseconds: 234));
-    });
-
-    test('enablePictureInPicture', () async {
-      await player.enablePictureInPicture(1);
-      expect(log.log.last, 'enablePictureInPicture');
-      expect(log.textureMessage?.textureId, 1);
-    });
-
-    test('disablePictureInPicture', () async {
-      await player.disablePictureInPicture(1);
-      expect(log.log.last, 'disablePictureInPicture');
-      expect(log.textureMessage?.textureId, 1);
     });
 
     test('startPictureInPicture', () async {

@@ -16,9 +16,73 @@ void main() {
   );
 }
 
-class _App extends StatelessWidget {
+class _App extends StatefulWidget {
+  @override
+  State<_App> createState() => _AppState();
+}
+
+class _AppState extends State<_App> {
+  late MiniController _assetController;
+  late MiniController _remoteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _assetController = MiniController.asset('assets/Butterfly-209.mp4');
+    _remoteController = MiniController.network(
+      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+    );
+
+    _assetController.addListener(_onStateChanged);
+    _remoteController.addListener(_onStateChanged);
+
+    _assetController.initialize().then((_) => setState(() {}));
+    _assetController.play();
+    _remoteController.initialize();
+  }
+
+  void _onStateChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _assetController.removeListener(_onStateChanged);
+    _remoteController.removeListener(_onStateChanged);
+    _assetController.dispose();
+    _remoteController.dispose();
+    super.dispose();
+  }
+
+  /// Returns the controller that is currently in PiP mode, or null.
+  MiniController? get _pipController {
+    if (_assetController.isPipActive) {
+      return _assetController;
+    }
+    if (_remoteController.isPipActive) {
+      return _remoteController;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final MiniController? pip = _pipController;
+
+    // PiP mode: show only the video, filling the entire window.
+    if (pip != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: pip.value.aspectRatio,
+            child: VideoPlayer(pip),
+          ),
+        ),
+      );
+    }
+
+    // Normal mode: tabbed layout with controls.
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -38,8 +102,8 @@ class _App extends StatelessWidget {
         ),
         body: TabBarView(
           children: <Widget>[
-            _BumbleBeeRemoteVideo(),
-            _ButterFlyAssetVideo(),
+            _VideoTab(controller: _remoteController, label: 'With remote mp4'),
+            _VideoTab(controller: _assetController, label: 'With assets mp4'),
           ],
         ),
       ),
@@ -47,87 +111,15 @@ class _App extends StatelessWidget {
   }
 }
 
-class _ButterFlyAssetVideo extends StatefulWidget {
-  @override
-  _ButterFlyAssetVideoState createState() => _ButterFlyAssetVideoState();
-}
+class _VideoTab extends StatelessWidget {
+  const _VideoTab({
+    Key? key,
+    required this.controller,
+    required this.label,
+  }) : super(key: key);
 
-class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
-  late MiniController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = MiniController.asset('assets/Butterfly-209.mp4');
-
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.initialize().then((_) => setState(() {}));
-    _controller.play();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.only(top: 20.0),
-          ),
-          const Text('With assets mp4'),
-          Container(
-            padding: const EdgeInsets.all(20),
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  VideoPlayer(_controller),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BumbleBeeRemoteVideo extends StatefulWidget {
-  @override
-  _BumbleBeeRemoteVideoState createState() => _BumbleBeeRemoteVideoState();
-}
-
-class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
-  late MiniController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = MiniController.network(
-      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-    );
-
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.initialize();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final MiniController controller;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -135,21 +127,117 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
       child: Column(
         children: <Widget>[
           Container(padding: const EdgeInsets.only(top: 20.0)),
-          const Text('With remote mp4'),
+          Text(label),
           Container(
             padding: const EdgeInsets.all(20),
             child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
+              aspectRatio: controller.value.aspectRatio,
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: <Widget>[
-                  VideoPlayer(_controller),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller),
+                  VideoPlayer(controller),
+                  _ControlsOverlay(controller: controller),
+                  VideoProgressIndicator(controller),
                 ],
               ),
             ),
           ),
+          _PipControls(controller: controller),
+        ],
+      ),
+    );
+  }
+}
+
+class _PipControls extends StatefulWidget {
+  const _PipControls({Key? key, required this.controller}) : super(key: key);
+
+  final MiniController controller;
+
+  @override
+  State<_PipControls> createState() => _PipControlsState();
+}
+
+class _PipControlsState extends State<_PipControls> {
+  bool _isPipSupported = false;
+  late VoidCallback _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    _listener = () {
+      if (widget.controller.value.isInitialized && !_isPipSupported) {
+        _checkPipSupport();
+      }
+      if (mounted) {
+        setState(() {});
+      }
+    };
+    widget.controller.addListener(_listener);
+    if (widget.controller.value.isInitialized) {
+      _checkPipSupport();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_listener);
+    super.dispose();
+  }
+
+  Future<void> _checkPipSupport() async {
+    if (!widget.controller.value.isInitialized) {
+      return;
+    }
+    final bool supported =
+        await widget.controller.isPictureInPictureSupported();
+    if (mounted) {
+      setState(() {
+        _isPipSupported = supported;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Picture-in-Picture',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text('Supported: $_isPipSupported'),
+          Text('Active: ${widget.controller.isPipActive}'),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              ElevatedButton.icon(
+                onPressed: _isPipSupported && !widget.controller.isPipActive
+                    ? () => widget.controller.startPictureInPicture()
+                    : null,
+                icon: const Icon(Icons.picture_in_picture),
+                label: const Text('Start PiP'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: widget.controller.isPipActive
+                    ? () => widget.controller.stopPictureInPicture()
+                    : null,
+                icon: const Icon(Icons.fullscreen_exit),
+                label: const Text('Stop PiP'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _checkPipSupport,
+            child: const Text('Refresh PiP Status'),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );

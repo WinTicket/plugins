@@ -47,6 +47,7 @@ class VideoPlayerValue {
     this.isPlaying = false,
     this.isLooping = false,
     this.isBuffering = false,
+    this.isPipActive = false,
     this.volume = 1.0,
     this.playbackSpeed = 1.0,
     this.rotationCorrection = 0,
@@ -98,6 +99,9 @@ class VideoPlayerValue {
 
   /// True if the video is currently buffering.
   final bool isBuffering;
+
+  /// True if the video is currently in Picture-in-Picture mode.
+  final bool isPipActive;
 
   /// The current volume of the playback.
   final double volume;
@@ -153,6 +157,7 @@ class VideoPlayerValue {
     bool? isPlaying,
     bool? isLooping,
     bool? isBuffering,
+    bool? isPipActive,
     double? volume,
     double? playbackSpeed,
     int? rotationCorrection,
@@ -169,6 +174,7 @@ class VideoPlayerValue {
       isPlaying: isPlaying ?? this.isPlaying,
       isLooping: isLooping ?? this.isLooping,
       isBuffering: isBuffering ?? this.isBuffering,
+      isPipActive: isPipActive ?? this.isPipActive,
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
@@ -191,6 +197,7 @@ class VideoPlayerValue {
         'isPlaying: $isPlaying, '
         'isLooping: $isLooping, '
         'isBuffering: $isBuffering, '
+        'isPipActive: $isPipActive, '
         'volume: $volume, '
         'playbackSpeed: $playbackSpeed, '
         'errorDescription: $errorDescription)';
@@ -421,6 +428,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.unknown:
           break;
+        case VideoEventType.pipStarted:
+          value = value.copyWith(isPipActive: true);
+          break;
+        case VideoEventType.pipStopped:
+          value = value.copyWith(isPipActive: false);
+          break;
+        case VideoEventType.pipRestoreUserInterface:
+          break;
       }
     }
 
@@ -584,12 +599,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposedOrNotInitialized) {
       return;
     }
-    final int sanitizedWidth = _maxVideoWidth ?? 0;
-    final int sanitizedHeight = _maxVideoHeight ?? 0;
     await _videoPlayerPlatform.setMaxVideoResolution(
       _textureId,
-      sanitizedWidth,
-      sanitizedHeight,
+      _maxVideoWidth ?? 0,
+      _maxVideoHeight ?? 0,
     );
   }
 
@@ -598,7 +611,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return null;
     }
-    return await _videoPlayerPlatform.getPosition(_textureId);
+    return _videoPlayerPlatform.getPosition(_textureId);
   }
 
   /// The duration in the current video.
@@ -606,7 +619,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return null;
     }
-    return await _videoPlayerPlatform.getDuration(_textureId);
+    return _videoPlayerPlatform.getDuration(_textureId);
   }
 
   /// Get latest isPlaying status from ExoPlayer/AVPlayer
@@ -614,7 +627,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return false;
     }
-    return await _videoPlayerPlatform.getIsPlaying(_textureId);
+    return _videoPlayerPlatform.getIsPlaying(_textureId);
   }
 
   /// Sets the video's current timestamp to be at [moment]. The next
@@ -690,6 +703,48 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     _maxVideoWidth = (width != null && width > 0) ? width : null;
     _maxVideoHeight = (height != null && height > 0) ? height : null;
     await _applyMaxVideoResolution();
+  }
+
+  /// Starts Picture-in-Picture mode.
+  ///
+  /// Supported on iOS (14.2+) and Android (8.0+).
+  /// On Android, the Activity must declare `android:supportsPictureInPicture="true"`
+  /// in the AndroidManifest.xml.
+  Future<void> startPictureInPicture() async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.startPictureInPicture(_textureId);
+  }
+
+  /// Stops Picture-in-Picture mode.
+  ///
+  /// Supported on iOS and Android.
+  Future<void> stopPictureInPicture() async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.stopPictureInPicture(_textureId);
+  }
+
+  /// Returns whether Picture-in-Picture is supported on this device.
+  ///
+  /// Supported on iOS (14.2+) and Android (8.0+).
+  Future<bool> isPictureInPictureSupported() async {
+    if (_isDisposedOrNotInitialized) {
+      return false;
+    }
+    return _videoPlayerPlatform.isPictureInPictureSupported(_textureId);
+  }
+
+  /// Returns whether Picture-in-Picture is currently active.
+  ///
+  /// Supported on iOS and Android.
+  Future<bool> isPictureInPictureActive() async {
+    if (_isDisposedOrNotInitialized) {
+      return false;
+    }
+    return _videoPlayerPlatform.isPictureInPictureActive(_textureId);
   }
 
   /// Sets the caption offset.

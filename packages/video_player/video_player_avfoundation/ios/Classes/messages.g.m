@@ -819,46 +819,6 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
   {
     FlutterBasicMessageChannel *channel =
       [[FlutterBasicMessageChannel alloc]
-        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.enablePictureInPicture"
-        binaryMessenger:binaryMessenger
-        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
-    if (api) {
-      NSCAssert([api respondsToSelector:@selector(enablePictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(enablePictureInPicture:error:)", api);
-      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
-        NSArray *args = message;
-        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
-        FlutterError *error;
-        [api enablePictureInPicture:arg_msg error:&error];
-        callback(wrapResult(nil, error));
-      }];
-    }
-    else {
-      [channel setMessageHandler:nil];
-    }
-  }
-  {
-    FlutterBasicMessageChannel *channel =
-      [[FlutterBasicMessageChannel alloc]
-        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.disablePictureInPicture"
-        binaryMessenger:binaryMessenger
-        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
-    if (api) {
-      NSCAssert([api respondsToSelector:@selector(disablePictureInPicture:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(disablePictureInPicture:error:)", api);
-      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
-        NSArray *args = message;
-        FLTTextureMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
-        FlutterError *error;
-        [api disablePictureInPicture:arg_msg error:&error];
-        callback(wrapResult(nil, error));
-      }];
-    }
-    else {
-      [channel setMessageHandler:nil];
-    }
-  }
-  {
-    FlutterBasicMessageChannel *channel =
-      [[FlutterBasicMessageChannel alloc]
         initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture"
         binaryMessenger:binaryMessenger
         codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];

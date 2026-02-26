@@ -686,6 +686,61 @@ public class Messages {
       return pigeonResult;
     }
   }
+  /** Generated class from Pigeon that represents data sent in messages. */
+  public static class PipStatusMessage {
+    private @NonNull Long textureId;
+    public @NonNull Long getTextureId() { return textureId; }
+    public void setTextureId(@NonNull Long setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"textureId\" is null.");
+      }
+      this.textureId = setterArg;
+    }
+
+    private @NonNull Boolean value;
+    public @NonNull Boolean getValue() { return value; }
+    public void setValue(@NonNull Boolean setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"value\" is null.");
+      }
+      this.value = setterArg;
+    }
+
+    /** Constructor is private to enforce null safety; use Builder. */
+    private PipStatusMessage() {}
+    public static final class Builder {
+      private @Nullable Long textureId;
+      public @NonNull Builder setTextureId(@NonNull Long setterArg) {
+        this.textureId = setterArg;
+        return this;
+      }
+      private @Nullable Boolean value;
+      public @NonNull Builder setValue(@NonNull Boolean setterArg) {
+        this.value = setterArg;
+        return this;
+      }
+      public @NonNull PipStatusMessage build() {
+        PipStatusMessage pigeonReturn = new PipStatusMessage();
+        pigeonReturn.setTextureId(textureId);
+        pigeonReturn.setValue(value);
+        return pigeonReturn;
+      }
+    }
+    @NonNull Map<String, Object> toMap() {
+      Map<String, Object> toMapResult = new HashMap<>();
+      toMapResult.put("textureId", textureId);
+      toMapResult.put("value", value);
+      return toMapResult;
+    }
+    static @NonNull PipStatusMessage fromMap(@NonNull Map<String, Object> map) {
+      PipStatusMessage pigeonResult = new PipStatusMessage();
+      Object textureId = map.get("textureId");
+      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer)textureId : (Long)textureId));
+      Object value = map.get("value");
+      pigeonResult.setValue((Boolean)value);
+      return pigeonResult;
+    }
+  }
   private static class AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     public static final AndroidVideoPlayerApiCodec INSTANCE = new AndroidVideoPlayerApiCodec();
     private AndroidVideoPlayerApiCodec() {}
@@ -722,10 +777,13 @@ public class Messages {
         case (byte)137:         
           return VolumeMessage.fromMap((Map<String, Object>) readValue(buffer));
 
-        case (byte)138:         
+        case (byte)138:
           return MaxVideoResolutionMessage.fromMap((Map<String, Object>) readValue(buffer));
 
-        default:        
+        case (byte)139:
+          return PipStatusMessage.fromMap((Map<String, Object>) readValue(buffer));
+
+        default:
           return super.readValueOfType(type, buffer);
 
       }
@@ -775,7 +833,11 @@ public class Messages {
       if (value instanceof MaxVideoResolutionMessage) {
         stream.write(138);
         writeValue(stream, ((MaxVideoResolutionMessage) value).toMap());
-      } else 
+      } else
+      if (value instanceof PipStatusMessage) {
+        stream.write(139);
+        writeValue(stream, ((PipStatusMessage) value).toMap());
+      } else
 {
         super.writeValue(stream, value);
       }
@@ -799,6 +861,10 @@ public class Messages {
     void setBuffer(@NonNull BufferMessage msg);
     void setMaxVideoResolution(@NonNull MaxVideoResolutionMessage msg);
     @NonNull IsPlayingMessage isPlaying(@NonNull TextureMessage msg);
+    void startPictureInPicture(@NonNull TextureMessage msg);
+    void stopPictureInPicture(@NonNull TextureMessage msg);
+    @NonNull PipStatusMessage isPictureInPictureSupported(@NonNull TextureMessage msg);
+    @NonNull PipStatusMessage isPictureInPictureActive(@NonNull TextureMessage msg);
 
     /** The codec used by AndroidVideoPlayerApi. */
     static MessageCodec<Object> getCodec() {
@@ -1151,6 +1217,102 @@ public class Messages {
                 throw new NullPointerException("msgArg unexpectedly null.");
               }
               IsPlayingMessage output = api.isPlaying(msgArg);
+              wrapped.put("result", output);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              TextureMessage msgArg = (TextureMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              api.startPictureInPicture(msgArg);
+              wrapped.put("result", null);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.stopPictureInPicture", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              TextureMessage msgArg = (TextureMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              api.stopPictureInPicture(msgArg);
+              wrapped.put("result", null);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              TextureMessage msgArg = (TextureMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              PipStatusMessage output = api.isPictureInPictureSupported(msgArg);
+              wrapped.put("result", output);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              TextureMessage msgArg = (TextureMessage)args.get(0);
+              if (msgArg == null) {
+                throw new NullPointerException("msgArg unexpectedly null.");
+              }
+              PipStatusMessage output = api.isPictureInPictureActive(msgArg);
               wrapped.put("result", output);
             }
             catch (Error | RuntimeException exception) {

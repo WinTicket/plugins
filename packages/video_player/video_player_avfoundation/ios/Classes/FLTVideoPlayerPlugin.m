@@ -237,6 +237,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
   [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
 
+  // Auto-setup PiP using the invisible player layer
+  [self setupPictureInPicture];
+
   return self;
 }
 
@@ -408,14 +411,14 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 #pragma mark - Picture-in-Picture
 
 - (void)setupPictureInPicture {
-  if (@available(iOS 15.0, *)) {
+  if (@available(iOS 14.2, *)) {
     if (_pipController) {
       return;
     }
-    // Create a hidden AVPlayerLayer for PiP (required for texture-based rendering)
+    // Create an AVPlayerLayer for PiP (required for texture-based rendering)
+    // Do not set hidden=YES as it prevents PiP on some iOS versions.
+    // Using CGRectZero enables the float-up animation workaround.
     _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
-    _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
-    _pipPlayerLayer.hidden = YES;
 
     // Add the layer to the key window so PiP can use it
     UIWindow *keyWindow = nil;
@@ -456,17 +459,38 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
-- (void)enablePictureInPicture {
-  [self setupPictureInPicture];
-}
-
-- (void)disablePictureInPicture {
-  [self tearDownPictureInPicture];
-}
-
 - (void)startPictureInPicture {
-  if (_pipController && ![_pipController isPictureInPictureActive]) {
-    [_pipController startPictureInPicture];
+  if (@available(iOS 14.2, *)) {
+    if (!_pipController) {
+      return;
+    }
+
+    if ([_pipController isPictureInPicturePossible]) {
+      [_pipController startPictureInPicture];
+      return;
+    }
+
+    // Float-up animation workaround: pause to make PiP possible with empty frame,
+    // then resume immediately after starting PiP.
+    BOOL wasPlaying = _player.rate > 0;
+    if (wasPlaying && CGRectIsEmpty(_pipPlayerLayer.frame)) {
+      [_player pause];
+
+      if ([_pipController isPictureInPicturePossible]) {
+        [_pipController startPictureInPicture];
+        [_player play];
+        return;
+      }
+
+      // isPossible may update asynchronously; retry on next run loop.
+      dispatch_async(dispatch_get_main_queue(), ^{
+        if (self->_pipController.isPictureInPicturePossible) {
+          [self->_pipController startPictureInPicture];
+        }
+        // Restore playback regardless — PiP will continue playing independently.
+        [self->_player play];
+      });
+    }
   }
 }
 
@@ -477,7 +501,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (BOOL)isPictureInPictureSupported {
-  if (@available(iOS 15.0, *)) {
+  if (@available(iOS 14.2, *)) {
     return [AVPictureInPictureController isPictureInPictureSupported];
   }
   return NO;
@@ -502,6 +526,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStopped"});
   }
+  [self updatePlayingState];
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
@@ -509,6 +534,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     _eventSink(@{@"event" : @"pipRestoreUserInterface"});
   }
   completionHandler(YES);
+}
+
+- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
 }
 
 - (int64_t)duration {
@@ -828,16 +856,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
                                                             isPlaying:@([player getLatestIsPlaying])];
   return result;
-}
-
-- (void)enablePictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player enablePictureInPicture];
-}
-
-- (void)disablePictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player disablePictureInPicture];
 }
 
 - (void)startPictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
