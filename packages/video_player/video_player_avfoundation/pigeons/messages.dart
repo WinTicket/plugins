@@ -94,6 +94,15 @@ class PipStatusMessage {
   bool value;
 }
 
+class PipSourceRectMessage {
+  PipSourceRectMessage(this.textureId, this.x, this.y, this.width, this.height);
+  int textureId;
+  double x;
+  double y;
+  double width;
+  double height;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
@@ -139,4 +148,6 @@ abstract class AVFoundationVideoPlayerApi {
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
   @ObjCSelector('setAutoPictureInPicture:')
   void setAutoPictureInPicture(PipStatusMessage msg);
+  @ObjCSelector('completePipRestoreWithSourceRect:')
+  void completePipRestoreWithSourceRect(PipSourceRectMessage msg);
 }

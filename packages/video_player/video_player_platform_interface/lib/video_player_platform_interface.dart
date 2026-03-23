@@ -157,6 +157,15 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError(
         'setAutoPictureInPicture() has not been implemented.');
   }
+
+  /// Completes the PiP restore animation by providing the source rect
+  /// (the screen position of the video widget) so the PiP window
+  /// animates back to the correct position.
+  Future<void> completePipRestoreWithSourceRect(
+      int textureId, double x, double y, double width, double height) {
+    throw UnimplementedError(
+        'completePipRestoreWithSourceRect() has not been implemented.');
+  }
 }
 
 /// バッファを調整するための各パラメーター

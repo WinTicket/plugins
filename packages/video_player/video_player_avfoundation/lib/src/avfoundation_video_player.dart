@@ -245,6 +245,18 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
         PipStatusMessage(textureId: textureId, value: enabled));
   }
 
+  @override
+  Future<void> completePipRestoreWithSourceRect(
+      int textureId, double x, double y, double width, double height) {
+    return _api.completePipRestoreWithSourceRect(PipSourceRectMessage(
+      textureId: textureId,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+    ));
+  }
+
   EventChannel _eventChannelFor(int textureId) {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }

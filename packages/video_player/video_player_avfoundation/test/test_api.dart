@@ -146,6 +146,7 @@ abstract class TestHostVideoPlayerApi {
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
   void setAutoPictureInPicture(PipStatusMessage msg);
+  void completePipRestoreWithSourceRect(PipSourceRectMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
@@ -476,6 +477,22 @@ abstract class TestHostVideoPlayerApi {
           final PipStatusMessage? arg_msg = (args[0] as PipStatusMessage?);
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setAutoPictureInPicture was null, expected non-null PipStatusMessage.');
           api.setAutoPictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final PipSourceRectMessage? arg_msg = (args[0] as PipSourceRectMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect was null, expected non-null PipSourceRectMessage.');
+          api.completePipRestoreWithSourceRect(arg_msg!);
           return <Object?, Object?>{};
         });
       }

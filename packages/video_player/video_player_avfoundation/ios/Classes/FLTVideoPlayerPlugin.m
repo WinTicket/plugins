@@ -51,11 +51,8 @@
 - (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
 @property(nonatomic, strong) AVPictureInPictureController *pipController;
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
-/// Black overlay shown during PiP start transition to hide the UI behind the video.
-@property(nonatomic, strong) UIView *pipBlackOverlay;
-/// Snapshot of the app UI captured when PiP starts, shown during PiP restore
-/// to hide the black background while Flutter re-renders.
-@property(nonatomic, strong) UIView *pipRestoreSnapshot;
+/// Held during PiP restore to defer completionHandler until Dart sends source rect.
+@property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -473,6 +470,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       return;
     }
 
+    // Temporarily reset frame to CGRectZero for manual PiP start so the
+    // float-up workaround is used (otherwise auto PiP's 1x1 frame at the
+    // origin causes PiP to animate from the top-left corner).
+    // The frame will be restored in didStart or didStop as needed.
+    CGRect savedFrame = _pipPlayerLayer.frame;
+    if (!CGRectIsEmpty(_pipPlayerLayer.frame)) {
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
+      _pipPlayerLayer.frame = CGRectZero;
+      [CATransaction commit];
+      NSLog(@"[PiP] Temporarily reset frame for manual PiP start (was %@)",
+            NSStringFromCGRect(savedFrame));
+    }
+
     if ([_pipController isPictureInPicturePossible]) {
       [_pipController startPictureInPicture];
       return;
@@ -481,7 +492,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     // Float-up animation workaround: pause to make PiP possible with empty frame,
     // then resume immediately after starting PiP.
     BOOL wasPlaying = _player.rate > 0;
-    if (wasPlaying && CGRectIsEmpty(_pipPlayerLayer.frame)) {
+    if (wasPlaying) {
       [_player pause];
 
       if ([_pipController isPictureInPicturePossible]) {
@@ -564,46 +575,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)pictureInPictureControllerWillStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
   NSLog(@"[PiP] willStartPictureInPicture");
-  // Add a black overlay behind the video area so the UI is not visible
-  // during the PiP float-up animation.
-  UIWindow *keyWindow = nil;
-  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-    if ([scene isKindOfClass:[UIWindowScene class]]) {
-      UIWindowScene *windowScene = (UIWindowScene *)scene;
-      for (UIWindow *window in windowScene.windows) {
-        if (window.isKeyWindow) {
-          keyWindow = window;
-          break;
-        }
-      }
-    }
-    if (keyWindow) break;
-  }
-  if (keyWindow) {
-    _pipBlackOverlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
-    _pipBlackOverlay.backgroundColor = [UIColor blackColor];
-    _pipBlackOverlay.alpha = 0.0;
-    [keyWindow addSubview:_pipBlackOverlay];
-    [UIView animateWithDuration:0.2 animations:^{
-      self->_pipBlackOverlay.alpha = 1.0;
-    }];
-    NSLog(@"[PiP] Black overlay added for start transition");
-  }
 }
 
 - (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
   NSLog(@"[PiP] didStartPictureInPicture");
-  // Fade out the black overlay now that PiP is active.
-  if (_pipBlackOverlay) {
-    [UIView animateWithDuration:0.3
-                     animations:^{
-                       self->_pipBlackOverlay.alpha = 0.0;
-                     }
-                     completion:^(BOOL finished) {
-                       [self->_pipBlackOverlay removeFromSuperview];
-                       self->_pipBlackOverlay = nil;
-                       NSLog(@"[PiP] Black overlay removed");
-                     }];
+  // Restore the 1x1 frame for auto PiP if it was temporarily reset in startPictureInPicture.
+  if (@available(iOS 14.2, *)) {
+    if (_pipController.canStartPictureInPictureAutomaticallyFromInline &&
+        CGRectIsEmpty(_pipPlayerLayer.frame)) {
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
+      _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+      [CATransaction commit];
+      NSLog(@"[PiP] Restored 1x1 frame after manual PiP start");
+    }
   }
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStarted"});
@@ -612,44 +597,88 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
   NSLog(@"[PiP] pictureInPictureControllerDidStopPictureInPicture");
-  // Clean up black overlay if it's still around.
-  if (_pipBlackOverlay) {
-    [_pipBlackOverlay removeFromSuperview];
-    _pipBlackOverlay = nil;
-  }
+  // Clean up completionHandler if it wasn't called (e.g. user tapped close button).
+  self.pipRestoreCompletionHandler = nil;
+
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStopped"});
   }
   [self updatePlayingState];
 
-  // Restore the 1x1 frame if auto PiP is still enabled, so the next auto PiP
-  // trigger can work. The frame was temporarily reset to CGRectZero in
-  // restoreUserInterface to avoid the fly-to-corner animation.
+  // Reset frame and unhide the layer. The layer was hidden in
+  // completePipRestoreWithSourceRect to prevent iOS internal animations.
   if (@available(iOS 14.2, *)) {
-    if (_pipController.canStartPictureInPictureAutomaticallyFromInline) {
-      _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
-      NSLog(@"[PiP] Restored pipPlayerLayer.frame to 1x1 for auto PiP");
-    }
-    NSLog(@"[PiP] After stop - isPossible=%d, canStartAutomatically=%d, frame=%@",
+    BOOL needsAutoPip = _pipController.canStartPictureInPictureAutomaticallyFromInline;
+    CGRect targetFrame = needsAutoPip ? CGRectMake(0, 0, 1, 1) : CGRectZero;
+
+    // Remove any pending/in-flight animations iOS may have added to the layer,
+    // then reset frame without implicit animation.
+    [_pipPlayerLayer removeAllAnimations];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [CATransaction setAnimationDuration:0];
+    _pipPlayerLayer.frame = targetFrame;
+    _pipPlayerLayer.hidden = NO;
+    [CATransaction commit];
+
+    NSLog(@"[PiP] After stop - frame=%@, isPossible=%d, canStartAutomatically=%d",
+          NSStringFromCGRect(_pipPlayerLayer.frame),
           _pipController.isPictureInPicturePossible,
-          _pipController.canStartPictureInPictureAutomaticallyFromInline,
-          NSStringFromCGRect(_pipPlayerLayer.frame));
+          _pipController.canStartPictureInPictureAutomaticallyFromInline);
   }
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
-  NSLog(@"[PiP] restoreUserInterfaceForPictureInPictureStop, frame=%@",
-        NSStringFromCGRect(_pipPlayerLayer.frame));
+  NSLog(@"[PiP] restoreUserInterfaceForPictureInPictureStop - waiting for Dart source rect");
+
+  // Hold the completionHandler and wait for Dart to send the video source rect.
+  // This allows PiP to animate back to the correct video position.
+  self.pipRestoreCompletionHandler = completionHandler;
+
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipRestoreUserInterface"});
   }
-  // Reset the frame to CGRectZero before the restore animation so iOS does not
-  // animate the PiP window to the 1x1 rect at the top-left corner.
-  // The frame will be restored to 1x1 in didStopPictureInPicture if auto PiP
-  // is still enabled.
-  _pipPlayerLayer.frame = CGRectZero;
-  NSLog(@"[PiP] Temporarily reset pipPlayerLayer.frame to CGRectZero for restore");
-  completionHandler(YES);
+
+  // Timeout: if Dart doesn't respond within 0.5s, fall back to screen center.
+  __weak typeof(self) weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf) return;
+    if (strongSelf.pipRestoreCompletionHandler) {
+      NSLog(@"[PiP] Dart source rect timeout - falling back to screen center");
+      CGRect screenBounds = [UIScreen mainScreen].bounds;
+      strongSelf->_pipPlayerLayer.frame = CGRectMake(
+          CGRectGetMidX(screenBounds),
+          CGRectGetMidY(screenBounds), 1, 1);
+      strongSelf.pipRestoreCompletionHandler(YES);
+      strongSelf.pipRestoreCompletionHandler = nil;
+    }
+  });
+}
+
+- (void)completePipRestoreWithSourceRect:(CGRect)rect {
+  NSLog(@"[PiP] completePipRestoreWithSourceRect: %@, currentFrame=%@",
+        NSStringFromCGRect(rect), NSStringFromCGRect(_pipPlayerLayer.frame));
+  if (self.pipRestoreCompletionHandler) {
+    // Set the frame to the video position so iOS animates the PiP window there.
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    _pipPlayerLayer.frame = rect;
+    [CATransaction commit];
+    NSLog(@"[PiP] pipPlayerLayer.frame set to %@ (no animation)", NSStringFromCGRect(rect));
+
+    self.pipRestoreCompletionHandler(YES);
+    self.pipRestoreCompletionHandler = nil;
+
+    // Hide the layer immediately after completionHandler so any internal iOS
+    // animation of the layer (e.g. flying it back to origin) is invisible.
+    // The layer will be unhidden and frame-reset in didStop.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      self->_pipPlayerLayer.hidden = YES;
+      NSLog(@"[PiP] pipPlayerLayer hidden after completionHandler");
+    });
+  }
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
@@ -1001,6 +1030,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                           error:(FlutterError **)error {
   FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId.integerValue)];
   [player setAutoPictureInPicture:input.value.boolValue];
+}
+
+- (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input
+                                   error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId.integerValue)];
+  CGRect rect = CGRectMake(
+      input.x.doubleValue,
+      input.y.doubleValue,
+      input.width.doubleValue,
+      input.height.doubleValue);
+  [player completePipRestoreWithSourceRect:rect];
 }
 
 @end

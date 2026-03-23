@@ -442,6 +442,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           value = value.copyWith(isPipActive: false);
           break;
         case VideoEventType.pipRestoreUserInterface:
+          _completePipRestore();
           break;
         case VideoEventType.autoPipChanged:
           value = value.copyWith(isAutoPipEnabled: event.isAutoPipEnabled);
@@ -772,6 +773,25 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
   }
 
+  /// Callback that returns the screen rect of the video Texture widget.
+  /// Set automatically by [_VideoPlayerState].
+  Rect? Function()? pipSourceRectProvider;
+
+  void _completePipRestore() {
+    debugPrint('[PiP] _completePipRestore called, provider=${pipSourceRectProvider != null}');
+    final rect = pipSourceRectProvider?.call();
+    debugPrint('[PiP] sourceRect=$rect');
+    if (rect != null && !_isDisposedOrNotInitialized) {
+      _videoPlayerPlatform.completePipRestoreWithSourceRect(
+        _textureId,
+        rect.left,
+        rect.top,
+        rect.width,
+        rect.height,
+      );
+    }
+  }
+
   /// Sets the caption offset.
   ///
   /// The [offset] will be used when getting the correct caption for a specific position.
@@ -922,8 +942,18 @@ class _VideoPlayerState extends State<VideoPlayer> {
   }
 
   late VoidCallback _listener;
+  final GlobalKey _textureKey = GlobalKey();
 
   late int _textureId;
+
+  Rect? _getSourceRect() {
+    final renderBox =
+        _textureKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return null;
+    final offset = renderBox.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
+  }
 
   @override
   void initState() {
@@ -932,20 +962,24 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
+    oldWidget.controller.pipSourceRectProvider = null;
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
+    widget.controller.pipSourceRectProvider = null;
   }
 
   @override
@@ -954,7 +988,10 @@ class _VideoPlayerState extends State<VideoPlayer> {
         ? Container()
         : _VideoPlayerWithRotation(
             rotation: widget.controller.value.rotationCorrection,
-            child: _videoPlayerPlatform.buildView(_textureId),
+            child: KeyedSubtree(
+              key: _textureKey,
+              child: _videoPlayerPlatform.buildView(_textureId),
+            ),
           );
   }
 }

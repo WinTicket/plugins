@@ -486,6 +486,28 @@ final class VideoPlayer {
       }
 
       eventSink.success(event);
+
+      // Update PiP params with the actual video aspect ratio now that the
+      // video format is known. When setAutoPictureInPicture was called before
+      // initialization, getVideoAspectRatio() returned the 16:9 default.
+      updateAutoPipParams();
+    }
+  }
+
+  /** Re-applies auto PiP params with the current video aspect ratio if enabled. */
+  private void updateAutoPipParams() {
+    if (!autoPipEnabled || activity == null) {
+      return;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(true)
+              .build();
+      activity.setPictureInPictureParams(params);
+      android.util.Log.d("AutoPiP", "Updated PiP params on initialized: aspectRatio="
+          + getVideoAspectRatio());
     }
   }
 
