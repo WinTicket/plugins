@@ -488,6 +488,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       _lifeCycleObserver?.dispose();
     }
     _isDisposed = true;
+    pipSourceRectProvider = null;
     super.dispose();
   }
 

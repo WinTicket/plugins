@@ -425,6 +425,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     // AVPictureInPictureController can use it for texture-based rendering.
     if (!_pipPlayerLayer) {
       _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
+      _pipPlayerLayer.frame = CGRectZero;
       UIWindow *keyWindow = nil;
       for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -448,6 +449,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)tearDownPictureInPicture {
+  // Release any pending completionHandler to prevent leaks during dispose.
+  self.pipRestoreCompletionHandler = nil;
+
   if (_pipController) {
     if ([_pipController isPictureInPictureActive]) {
       [_pipController stopPictureInPicture];
@@ -472,7 +476,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     // float-up workaround is used (otherwise auto PiP's 1x1 frame at the
     // origin causes PiP to animate from the top-left corner).
     // The frame will be restored in didStart or didStop as needed.
-    CGRect savedFrame = _pipPlayerLayer.frame;
     if (!CGRectIsEmpty(_pipPlayerLayer.frame)) {
       [CATransaction begin];
       [CATransaction setDisableActions:YES];
@@ -498,12 +501,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       }
 
       // isPossible may update asynchronously; retry on next run loop.
+      __weak typeof(self) weakSelf = self;
       dispatch_async(dispatch_get_main_queue(), ^{
-        if (self->_pipController.isPictureInPicturePossible) {
-          [self->_pipController startPictureInPicture];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        if (strongSelf->_pipController.isPictureInPicturePossible) {
+          [strongSelf->_pipController startPictureInPicture];
         }
         // Restore playback regardless — PiP will continue playing independently.
-        [self->_player play];
+        [strongSelf->_player play];
       });
     }
   }
@@ -539,11 +545,14 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       // Auto PiP requires the AVPlayerLayer to have a non-zero frame so that
       // iOS considers the player to be "playing inline". With CGRectZero the
       // system never triggers automatic PiP on app backgrounding.
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
       if (enabled) {
         _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
       } else {
         _pipPlayerLayer.frame = CGRectZero;
       }
+      [CATransaction commit];
       _pipController.canStartPictureInPictureAutomaticallyFromInline = enabled;
       effectiveEnabled = enabled;
     }
@@ -621,9 +630,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (!strongSelf) return;
     if (strongSelf.pipRestoreCompletionHandler) {
       CGRect screenBounds = [UIScreen mainScreen].bounds;
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
       strongSelf->_pipPlayerLayer.frame = CGRectMake(
           CGRectGetMidX(screenBounds),
           CGRectGetMidY(screenBounds), 1, 1);
+      [CATransaction commit];
       strongSelf.pipRestoreCompletionHandler(YES);
       strongSelf.pipRestoreCompletionHandler = nil;
     }
@@ -641,12 +653,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     self.pipRestoreCompletionHandler(YES);
     self.pipRestoreCompletionHandler = nil;
 
-    // Hide the layer immediately after completionHandler so any internal iOS
+    // Hide the layer synchronously after completionHandler so any internal iOS
     // animation of the layer (e.g. flying it back to origin) is invisible.
     // The layer will be unhidden and frame-reset in didStop.
-    dispatch_async(dispatch_get_main_queue(), ^{
-      self->_pipPlayerLayer.hidden = YES;
-    });
+    _pipPlayerLayer.hidden = YES;
   }
 }
 

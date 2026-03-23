@@ -127,6 +127,11 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
       OnPictureInPictureModeChangedProvider provider =
           (OnPictureInPictureModeChangedProvider) boundActivity;
 
+      // Remove existing listener to prevent double registration on config changes.
+      if (pipModeChangedListener != null) {
+        provider.removeOnPictureInPictureModeChangedListener(pipModeChangedListener);
+      }
+
       pipModeChangedListener =
           info -> {
             if (lastPipPlayerId < 0) {
@@ -223,9 +228,14 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   }
 
   public void dispose(TextureMessage arg) {
-    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    long textureId = arg.getTextureId();
+    VideoPlayer player = videoPlayers.get(textureId);
     player.dispose();
-    videoPlayers.remove(arg.getTextureId());
+    videoPlayers.remove(textureId);
+    // Reset lastPipPlayerId if the disposed player was the PiP player.
+    if (lastPipPlayerId == textureId) {
+      lastPipPlayerId = -1;
+    }
   }
 
   public void setLooping(LoopingMessage arg) {
