@@ -440,12 +440,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       }
       if (keyWindow) {
         [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
-        NSLog(@"[PiP] pipPlayerLayer added to rootViewController");
       }
     }
     _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
     _pipController.delegate = self;
-    NSLog(@"[PiP] pipController created, isPossible=%d", _pipController.isPictureInPicturePossible);
   }
 }
 
@@ -480,8 +478,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       [CATransaction setDisableActions:YES];
       _pipPlayerLayer.frame = CGRectZero;
       [CATransaction commit];
-      NSLog(@"[PiP] Temporarily reset frame for manual PiP start (was %@)",
-            NSStringFromCGRect(savedFrame));
     }
 
     if ([_pipController isPictureInPicturePossible]) {
@@ -534,11 +530,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setAutoPictureInPicture:(BOOL)enabled {
-  NSLog(@"[AutoPiP] setAutoPictureInPicture called: enabled=%d", enabled);
   BOOL effectiveEnabled = NO;
   if (@available(iOS 14.2, *)) {
     if (!_pipController) {
-      NSLog(@"[AutoPiP] pipController is nil, calling setupPictureInPicture");
       [self setupPictureInPicture];
     }
     if (_pipController) {
@@ -547,22 +541,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       // system never triggers automatic PiP on app backgrounding.
       if (enabled) {
         _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
-        NSLog(@"[AutoPiP] pipPlayerLayer.frame set to 1x1");
       } else {
         _pipPlayerLayer.frame = CGRectZero;
-        NSLog(@"[AutoPiP] pipPlayerLayer.frame reset to CGRectZero");
       }
       _pipController.canStartPictureInPictureAutomaticallyFromInline = enabled;
       effectiveEnabled = enabled;
-      NSLog(@"[AutoPiP] canStartPictureInPictureAutomaticallyFromInline set to %d, frame=%@",
-            enabled, NSStringFromCGRect(_pipPlayerLayer.frame));
-    } else {
-      NSLog(@"[AutoPiP] pipController is still nil after setup, cannot set auto PiP");
     }
-  } else {
-    NSLog(@"[AutoPiP] iOS 14.2+ required, current version does not support auto PiP");
   }
-  NSLog(@"[AutoPiP] Sending autoPipChanged event: effectiveEnabled=%d", effectiveEnabled);
   if (_eventSink) {
     _eventSink(@{
       @"event" : @"autoPipChanged",
@@ -574,11 +559,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 #pragma mark - AVPictureInPictureControllerDelegate
 
 - (void)pictureInPictureControllerWillStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
-  NSLog(@"[PiP] willStartPictureInPicture");
 }
 
 - (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
-  NSLog(@"[PiP] didStartPictureInPicture");
   // Restore the 1x1 frame for auto PiP if it was temporarily reset in startPictureInPicture.
   if (@available(iOS 14.2, *)) {
     if (_pipController.canStartPictureInPictureAutomaticallyFromInline &&
@@ -587,7 +570,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       [CATransaction setDisableActions:YES];
       _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
       [CATransaction commit];
-      NSLog(@"[PiP] Restored 1x1 frame after manual PiP start");
     }
   }
   if (_eventSink) {
@@ -596,7 +578,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
-  NSLog(@"[PiP] pictureInPictureControllerDidStopPictureInPicture");
   // Clean up completionHandler if it wasn't called (e.g. user tapped close button).
   self.pipRestoreCompletionHandler = nil;
 
@@ -620,17 +601,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     _pipPlayerLayer.frame = targetFrame;
     _pipPlayerLayer.hidden = NO;
     [CATransaction commit];
-
-    NSLog(@"[PiP] After stop - frame=%@, isPossible=%d, canStartAutomatically=%d",
-          NSStringFromCGRect(_pipPlayerLayer.frame),
-          _pipController.isPictureInPicturePossible,
-          _pipController.canStartPictureInPictureAutomaticallyFromInline);
   }
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
-  NSLog(@"[PiP] restoreUserInterfaceForPictureInPictureStop - waiting for Dart source rect");
-
   // Hold the completionHandler and wait for Dart to send the video source rect.
   // This allows PiP to animate back to the correct video position.
   self.pipRestoreCompletionHandler = completionHandler;
@@ -646,7 +620,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     __strong typeof(weakSelf) strongSelf = weakSelf;
     if (!strongSelf) return;
     if (strongSelf.pipRestoreCompletionHandler) {
-      NSLog(@"[PiP] Dart source rect timeout - falling back to screen center");
       CGRect screenBounds = [UIScreen mainScreen].bounds;
       strongSelf->_pipPlayerLayer.frame = CGRectMake(
           CGRectGetMidX(screenBounds),
@@ -658,15 +631,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)completePipRestoreWithSourceRect:(CGRect)rect {
-  NSLog(@"[PiP] completePipRestoreWithSourceRect: %@, currentFrame=%@",
-        NSStringFromCGRect(rect), NSStringFromCGRect(_pipPlayerLayer.frame));
   if (self.pipRestoreCompletionHandler) {
     // Set the frame to the video position so iOS animates the PiP window there.
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     _pipPlayerLayer.frame = rect;
     [CATransaction commit];
-    NSLog(@"[PiP] pipPlayerLayer.frame set to %@ (no animation)", NSStringFromCGRect(rect));
 
     self.pipRestoreCompletionHandler(YES);
     self.pipRestoreCompletionHandler = nil;
@@ -676,7 +646,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     // The layer will be unhidden and frame-reset in didStop.
     dispatch_async(dispatch_get_main_queue(), ^{
       self->_pipPlayerLayer.hidden = YES;
-      NSLog(@"[PiP] pipPlayerLayer hidden after completionHandler");
     });
   }
 }

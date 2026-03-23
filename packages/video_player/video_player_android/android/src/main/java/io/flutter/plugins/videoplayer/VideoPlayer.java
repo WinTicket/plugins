@@ -403,13 +403,10 @@ final class VideoPlayer {
 
   void setAutoPictureInPicture(boolean enabled) {
     this.autoPipEnabled = enabled;
-    android.util.Log.d("AutoPiP", "setAutoPictureInPicture called: enabled=" + enabled
-        + ", apiLevel=" + Build.VERSION.SDK_INT);
 
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
       // API 31 未満では setAutoEnterEnabled が使えない。
       // Flutter 側のフォールバックに委ねるため、要求された enabled 値をそのまま通知。
-      android.util.Log.d("AutoPiP", "API < 31, delegating to Flutter-side fallback");
       sendAutoPipChangedEvent(enabled);
       return;
     }
@@ -429,8 +426,6 @@ final class VideoPlayer {
             .setAutoEnterEnabled(enabled)
             .build();
     activity.setPictureInPictureParams(params);
-    android.util.Log.d("AutoPiP", "setPictureInPictureParams done: autoEnter=" + enabled
-        + ", aspectRatio=" + getVideoAspectRatio());
 
     sendAutoPipChangedEvent(enabled);
   }
@@ -506,8 +501,6 @@ final class VideoPlayer {
               .setAutoEnterEnabled(true)
               .build();
       activity.setPictureInPictureParams(params);
-      android.util.Log.d("AutoPiP", "Updated PiP params on initialized: aspectRatio="
-          + getVideoAspectRatio());
     }
   }
 

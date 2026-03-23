@@ -256,21 +256,17 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           value = value.copyWith(isBuffering: false);
           break;
         case VideoEventType.pipStarted:
-          debugPrint('[PiP] pipStarted event received');
           _isPipActive = true;
           notifyListeners();
           break;
         case VideoEventType.pipStopped:
-          debugPrint('[PiP] pipStopped event received');
           _isPipActive = false;
           notifyListeners();
           break;
         case VideoEventType.pipRestoreUserInterface:
-          debugPrint('[PiP] pipRestoreUserInterface event received');
           _completePipRestore();
           break;
         case VideoEventType.autoPipChanged:
-          debugPrint('[AutoPiP] autoPipChanged event received: ${event.isAutoPipEnabled}');
           _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
           notifyListeners();
           break;
@@ -396,7 +392,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Sets whether Picture-in-Picture should start automatically when the app
   /// enters background.
   Future<void> setAutoPictureInPicture(bool enabled) {
-    debugPrint('[AutoPiP] setAutoPictureInPicture called: enabled=$enabled');
     return _platform.setAutoPictureInPicture(_textureId, enabled);
   }
 
@@ -406,7 +401,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   void _completePipRestore() {
     final rect = pipSourceRectProvider?.call();
-    debugPrint('[PiP] _completePipRestore: provider=${pipSourceRectProvider != null}, rect=$rect');
     if (rect != null) {
       _platform.completePipRestoreWithSourceRect(
         _textureId,

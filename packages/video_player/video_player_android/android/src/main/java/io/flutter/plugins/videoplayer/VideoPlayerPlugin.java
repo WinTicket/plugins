@@ -129,32 +129,22 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
 
       pipModeChangedListener =
           info -> {
-            android.util.Log.d("PiP", "onPictureInPictureModeChanged: isInPiP="
-                + info.isInPictureInPictureMode() + ", lastPipPlayerId=" + lastPipPlayerId);
             if (lastPipPlayerId < 0) {
-              android.util.Log.w("PiP", "lastPipPlayerId < 0, ignoring PiP mode change");
               return;
             }
             VideoPlayer player = videoPlayers.get(lastPipPlayerId);
             if (player == null || player.videoPlayerCallbacks == null) {
-              android.util.Log.w("PiP", "player or callbacks is null for id=" + lastPipPlayerId);
               return;
             }
             if (info.isInPictureInPictureMode()) {
-              android.util.Log.d("PiP", "PiP started, sending pipStarted event");
               player.videoPlayerCallbacks.onPictureInPictureStarted();
             } else {
-              android.util.Log.d("PiP", "PiP stopped, autoPipEnabled=" + player.isAutoPipEnabled());
               player.videoPlayerCallbacks.onPictureInPictureStopped();
               // Auto PiP が有効な場合は lastPipPlayerId を保持する。
               // リセットすると、2回目以降の auto PiP 進入時に pipStarted イベントが
               // 送信されず、Dart 側が PiP を認識できなくなる。
               if (!player.isAutoPipEnabled()) {
                 lastPipPlayerId = -1;
-                android.util.Log.d("PiP", "lastPipPlayerId reset to -1");
-              } else {
-                android.util.Log.d("PiP", "lastPipPlayerId kept at " + lastPipPlayerId
-                    + " (autoPiP enabled)");
               }
             }
           };
