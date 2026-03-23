@@ -86,6 +86,7 @@ final class VideoPlayer {
   @Nullable VideoPlayerCallbacks videoPlayerCallbacks;
   @Nullable private Activity activity;
   @Nullable private PipRequestHandler pipRequestHandler;
+  private boolean autoPipEnabled = false;
 
   VideoPlayer(
       Context context,
@@ -362,19 +363,12 @@ final class VideoPlayer {
           "Cannot start Picture-in-Picture: no Activity is available.");
     }
 
-    Format videoFormat = exoPlayer.getVideoFormat();
-    // Default to 16:9 if video format is not available.
-    Rational aspectRatio =
-        (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0)
-            ? new Rational(videoFormat.width, videoFormat.height)
-            : new Rational(16, 9);
-
     if (pipRequestHandler != null) {
       pipRequestHandler.onPipRequested();
     }
 
     PictureInPictureParams params =
-        new PictureInPictureParams.Builder().setAspectRatio(aspectRatio).build();
+        new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
     activity.enterPictureInPictureMode(params);
   }
 
@@ -405,6 +399,60 @@ final class VideoPlayer {
       return false;
     }
     return activity.isInPictureInPictureMode();
+  }
+
+  void setAutoPictureInPicture(boolean enabled) {
+    this.autoPipEnabled = enabled;
+    android.util.Log.d("AutoPiP", "setAutoPictureInPicture called: enabled=" + enabled
+        + ", apiLevel=" + Build.VERSION.SDK_INT);
+
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+      // API 31 未満では setAutoEnterEnabled が使えない。
+      // Flutter 側のフォールバックに委ねるため、要求された enabled 値をそのまま通知。
+      android.util.Log.d("AutoPiP", "API < 31, delegating to Flutter-side fallback");
+      sendAutoPipChangedEvent(enabled);
+      return;
+    }
+    if (activity == null) {
+      android.util.Log.w("AutoPiP", "activity is null, cannot set auto PiP");
+      sendAutoPipChangedEvent(false);
+      return;
+    }
+
+    if (pipRequestHandler != null && enabled) {
+      pipRequestHandler.onPipRequested();
+    }
+
+    PictureInPictureParams params =
+        new PictureInPictureParams.Builder()
+            .setAspectRatio(getVideoAspectRatio())
+            .setAutoEnterEnabled(enabled)
+            .build();
+    activity.setPictureInPictureParams(params);
+    android.util.Log.d("AutoPiP", "setPictureInPictureParams done: autoEnter=" + enabled
+        + ", aspectRatio=" + getVideoAspectRatio());
+
+    sendAutoPipChangedEvent(enabled);
+  }
+
+  boolean isAutoPipEnabled() {
+    return autoPipEnabled;
+  }
+
+  /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
+  private Rational getVideoAspectRatio() {
+    Format videoFormat = exoPlayer.getVideoFormat();
+    if (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0) {
+      return new Rational(videoFormat.width, videoFormat.height);
+    }
+    return new Rational(16, 9);
+  }
+
+  private void sendAutoPipChangedEvent(boolean enabled) {
+    Map<String, Object> event = new HashMap<>();
+    event.put("event", "autoPipChanged");
+    event.put("enabled", enabled);
+    eventSink.success(event);
   }
 
   @SuppressWarnings("SuspiciousNameCombination")

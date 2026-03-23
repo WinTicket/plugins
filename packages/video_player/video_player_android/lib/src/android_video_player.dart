@@ -165,6 +165,11 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.pipStarted);
         case 'pipStopped':
           return VideoEvent(eventType: VideoEventType.pipStopped);
+        case 'autoPipChanged':
+          return VideoEvent(
+            eventType: VideoEventType.autoPipChanged,
+            isAutoPipEnabled: map['enabled'] as bool? ?? false,
+          );
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
@@ -230,6 +235,12 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
     final PipStatusMessage response = await _api
         .isPictureInPictureActive(TextureMessage(textureId: textureId));
     return response.value;
+  }
+
+  @override
+  Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
+    return _api.setAutoPictureInPicture(
+        PipStatusMessage(textureId: textureId, value: enabled));
   }
 
   EventChannel _eventChannelFor(int textureId) {

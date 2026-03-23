@@ -172,7 +172,15 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   /// Whether Picture-in-Picture is currently active.
   bool _isPipActive = false;
+
+  /// Returns whether Picture-in-Picture is currently active.
   bool get isPipActive => _isPipActive;
+
+  /// Whether auto Picture-in-Picture is currently enabled.
+  bool _isAutoPipEnabled = false;
+
+  /// Returns whether auto Picture-in-Picture is currently enabled.
+  bool get isAutoPipEnabled => _isAutoPipEnabled;
 
   /// The id of a texture that hasn't been initialized.
   @visibleForTesting
@@ -249,13 +257,17 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.pipStarted:
           _isPipActive = true;
-          value = value.copyWith();
+          notifyListeners();
           break;
         case VideoEventType.pipStopped:
           _isPipActive = false;
-          value = value.copyWith();
+          notifyListeners();
           break;
         case VideoEventType.pipRestoreUserInterface:
+          break;
+        case VideoEventType.autoPipChanged:
+          _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
+          notifyListeners();
           break;
         case VideoEventType.unknown:
           break;
@@ -374,6 +386,12 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Returns whether Picture-in-Picture is currently active.
   Future<bool> isPictureInPictureActive() {
     return _platform.isPictureInPictureActive(_textureId);
+  }
+
+  /// Sets whether Picture-in-Picture should start automatically when the app
+  /// enters background.
+  Future<void> setAutoPictureInPicture(bool enabled) {
+    return _platform.setAutoPictureInPicture(_textureId, enabled);
   }
 
   @override

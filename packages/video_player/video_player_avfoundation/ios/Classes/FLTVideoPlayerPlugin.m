@@ -51,6 +51,11 @@
 - (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
 @property(nonatomic, strong) AVPictureInPictureController *pipController;
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
+/// Black overlay shown during PiP start transition to hide the UI behind the video.
+@property(nonatomic, strong) UIView *pipBlackOverlay;
+/// Snapshot of the app UI captured when PiP starts, shown during PiP restore
+/// to hide the black background while Flutter re-renders.
+@property(nonatomic, strong) UIView *pipRestoreSnapshot;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -415,33 +420,35 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (_pipController) {
       return;
     }
-    // Create an AVPlayerLayer for PiP (required for texture-based rendering)
-    // Do not set hidden=YES as it prevents PiP on some iOS versions.
-    // Using CGRectZero enables the float-up animation workaround.
-    _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
-
-    // Add the layer to the key window so PiP can use it
-    UIWindow *keyWindow = nil;
-    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-      if ([scene isKindOfClass:[UIWindowScene class]]) {
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        for (UIWindow *window in windowScene.windows) {
-          if (window.isKeyWindow) {
-            keyWindow = window;
-            break;
+    if (![AVPictureInPictureController isPictureInPictureSupported]) {
+      return;
+    }
+    // Reuse the existing invisible player layer (same pattern as upstream).
+    // The layer is added to the Flutter view controller's root layer so that
+    // AVPictureInPictureController can use it for texture-based rendering.
+    if (!_pipPlayerLayer) {
+      _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
+      UIWindow *keyWindow = nil;
+      for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          UIWindowScene *windowScene = (UIWindowScene *)scene;
+          for (UIWindow *window in windowScene.windows) {
+            if (window.isKeyWindow) {
+              keyWindow = window;
+              break;
+            }
           }
         }
+        if (keyWindow) break;
       }
-      if (keyWindow) break;
+      if (keyWindow) {
+        [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
+        NSLog(@"[PiP] pipPlayerLayer added to rootViewController");
+      }
     }
-    if (keyWindow) {
-      [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
-    }
-
-    if ([AVPictureInPictureController isPictureInPictureSupported]) {
-      _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
-      _pipController.delegate = self;
-    }
+    _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
+    _pipController.delegate = self;
+    NSLog(@"[PiP] pipController created, isPossible=%d", _pipController.isPictureInPicturePossible);
   }
 }
 
@@ -453,6 +460,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     _pipController.delegate = nil;
     _pipController = nil;
   }
+  // Remove the playerLayer only on full dispose. Keep it alive for PiP reuse.
   if (_pipPlayerLayer) {
     [_pipPlayerLayer removeFromSuperlayer];
     _pipPlayerLayer = nil;
@@ -514,29 +522,138 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return NO;
 }
 
+- (void)setAutoPictureInPicture:(BOOL)enabled {
+  NSLog(@"[AutoPiP] setAutoPictureInPicture called: enabled=%d", enabled);
+  BOOL effectiveEnabled = NO;
+  if (@available(iOS 14.2, *)) {
+    if (!_pipController) {
+      NSLog(@"[AutoPiP] pipController is nil, calling setupPictureInPicture");
+      [self setupPictureInPicture];
+    }
+    if (_pipController) {
+      // Auto PiP requires the AVPlayerLayer to have a non-zero frame so that
+      // iOS considers the player to be "playing inline". With CGRectZero the
+      // system never triggers automatic PiP on app backgrounding.
+      if (enabled) {
+        _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+        NSLog(@"[AutoPiP] pipPlayerLayer.frame set to 1x1");
+      } else {
+        _pipPlayerLayer.frame = CGRectZero;
+        NSLog(@"[AutoPiP] pipPlayerLayer.frame reset to CGRectZero");
+      }
+      _pipController.canStartPictureInPictureAutomaticallyFromInline = enabled;
+      effectiveEnabled = enabled;
+      NSLog(@"[AutoPiP] canStartPictureInPictureAutomaticallyFromInline set to %d, frame=%@",
+            enabled, NSStringFromCGRect(_pipPlayerLayer.frame));
+    } else {
+      NSLog(@"[AutoPiP] pipController is still nil after setup, cannot set auto PiP");
+    }
+  } else {
+    NSLog(@"[AutoPiP] iOS 14.2+ required, current version does not support auto PiP");
+  }
+  NSLog(@"[AutoPiP] Sending autoPipChanged event: effectiveEnabled=%d", effectiveEnabled);
+  if (_eventSink) {
+    _eventSink(@{
+      @"event" : @"autoPipChanged",
+      @"enabled" : @(effectiveEnabled)
+    });
+  }
+}
+
 #pragma mark - AVPictureInPictureControllerDelegate
 
+- (void)pictureInPictureControllerWillStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  NSLog(@"[PiP] willStartPictureInPicture");
+  // Add a black overlay behind the video area so the UI is not visible
+  // during the PiP float-up animation.
+  UIWindow *keyWindow = nil;
+  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      UIWindowScene *windowScene = (UIWindowScene *)scene;
+      for (UIWindow *window in windowScene.windows) {
+        if (window.isKeyWindow) {
+          keyWindow = window;
+          break;
+        }
+      }
+    }
+    if (keyWindow) break;
+  }
+  if (keyWindow) {
+    _pipBlackOverlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
+    _pipBlackOverlay.backgroundColor = [UIColor blackColor];
+    _pipBlackOverlay.alpha = 0.0;
+    [keyWindow addSubview:_pipBlackOverlay];
+    [UIView animateWithDuration:0.2 animations:^{
+      self->_pipBlackOverlay.alpha = 1.0;
+    }];
+    NSLog(@"[PiP] Black overlay added for start transition");
+  }
+}
+
 - (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  NSLog(@"[PiP] didStartPictureInPicture");
+  // Fade out the black overlay now that PiP is active.
+  if (_pipBlackOverlay) {
+    [UIView animateWithDuration:0.3
+                     animations:^{
+                       self->_pipBlackOverlay.alpha = 0.0;
+                     }
+                     completion:^(BOOL finished) {
+                       [self->_pipBlackOverlay removeFromSuperview];
+                       self->_pipBlackOverlay = nil;
+                       NSLog(@"[PiP] Black overlay removed");
+                     }];
+  }
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStarted"});
   }
 }
 
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  NSLog(@"[PiP] pictureInPictureControllerDidStopPictureInPicture");
+  // Clean up black overlay if it's still around.
+  if (_pipBlackOverlay) {
+    [_pipBlackOverlay removeFromSuperview];
+    _pipBlackOverlay = nil;
+  }
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStopped"});
   }
   [self updatePlayingState];
+
+  // Restore the 1x1 frame if auto PiP is still enabled, so the next auto PiP
+  // trigger can work. The frame was temporarily reset to CGRectZero in
+  // restoreUserInterface to avoid the fly-to-corner animation.
+  if (@available(iOS 14.2, *)) {
+    if (_pipController.canStartPictureInPictureAutomaticallyFromInline) {
+      _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+      NSLog(@"[PiP] Restored pipPlayerLayer.frame to 1x1 for auto PiP");
+    }
+    NSLog(@"[PiP] After stop - isPossible=%d, canStartAutomatically=%d, frame=%@",
+          _pipController.isPictureInPicturePossible,
+          _pipController.canStartPictureInPictureAutomaticallyFromInline,
+          NSStringFromCGRect(_pipPlayerLayer.frame));
+  }
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
+  NSLog(@"[PiP] restoreUserInterfaceForPictureInPictureStop, frame=%@",
+        NSStringFromCGRect(_pipPlayerLayer.frame));
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipRestoreUserInterface"});
   }
+  // Reset the frame to CGRectZero before the restore animation so iOS does not
+  // animate the PiP window to the 1x1 rect at the top-left corner.
+  // The frame will be restored to 1x1 in didStopPictureInPicture if auto PiP
+  // is still enabled.
+  _pipPlayerLayer.frame = CGRectZero;
+  NSLog(@"[PiP] Temporarily reset pipPlayerLayer.frame to CGRectZero for restore");
   completionHandler(YES);
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
+  NSLog(@"[PiP] failedToStartPictureInPictureWithError: %@", error.localizedDescription);
 }
 
 - (int64_t)duration {
@@ -878,6 +995,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   return [FLTPipStatusMessage makeWithTextureId:input.textureId
                                           value:@([player isPictureInPictureActive])];
+}
+
+- (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input
+                          error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId.integerValue)];
+  [player setAutoPictureInPicture:input.value.boolValue];
 }
 
 @end

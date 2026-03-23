@@ -427,6 +427,15 @@ class _PipControlsState extends State<_PipControls> {
               ),
             ],
           ),
+          SwitchListTile(
+            title: const Text('Auto PiP'),
+            value: widget.controller.value.isAutoPipEnabled,
+            onChanged: _isPipSupported
+                ? (bool enabled) {
+                    widget.controller.setAutoPictureInPicture(enabled);
+                  }
+                : null,
+          ),
           const SizedBox(height: 16),
         ],
       ),

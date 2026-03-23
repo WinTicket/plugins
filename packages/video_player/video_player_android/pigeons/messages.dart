@@ -109,4 +109,5 @@ abstract class AndroidVideoPlayerApi {
   void stopPictureInPicture(TextureMessage msg);
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
+  void setAutoPictureInPicture(PipStatusMessage msg);
 }

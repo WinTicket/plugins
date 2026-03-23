@@ -166,6 +166,18 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Only set for [asset] videos. The package that the asset was loaded from.
   final String? package;
 
+  /// Whether Picture-in-Picture is currently active.
+  bool _isPipActive = false;
+
+  /// Returns whether Picture-in-Picture is currently active.
+  bool get isPipActive => _isPipActive;
+
+  /// Whether auto Picture-in-Picture is currently enabled.
+  bool _isAutoPipEnabled = false;
+
+  /// Returns whether auto Picture-in-Picture is currently enabled.
+  bool get isAutoPipEnabled => _isAutoPipEnabled;
+
   Timer? _timer;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
@@ -242,6 +254,24 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
+          break;
+        case VideoEventType.pipStarted:
+          debugPrint('[PiP] pipStarted event received');
+          _isPipActive = true;
+          notifyListeners();
+          break;
+        case VideoEventType.pipStopped:
+          debugPrint('[PiP] pipStopped event received');
+          _isPipActive = false;
+          notifyListeners();
+          break;
+        case VideoEventType.pipRestoreUserInterface:
+          debugPrint('[PiP] pipRestoreUserInterface event received');
+          break;
+        case VideoEventType.autoPipChanged:
+          debugPrint('[AutoPiP] autoPipChanged event received: ${event.isAutoPipEnabled}');
+          _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
+          notifyListeners();
           break;
         case VideoEventType.unknown:
           break;
@@ -360,6 +390,13 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Returns whether Picture-in-Picture is currently active.
   Future<bool> isPictureInPictureActive() {
     return _platform.isPictureInPictureActive(_textureId);
+  }
+
+  /// Sets whether Picture-in-Picture should start automatically when the app
+  /// enters background.
+  Future<void> setAutoPictureInPicture(bool enabled) {
+    debugPrint('[AutoPiP] setAutoPictureInPicture called: enabled=$enabled');
+    return _platform.setAutoPictureInPicture(_textureId, enabled);
   }
 
   @override

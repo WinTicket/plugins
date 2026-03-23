@@ -145,6 +145,7 @@ abstract class TestHostVideoPlayerApi {
   void stopPictureInPicture(TextureMessage msg);
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
+  void setAutoPictureInPicture(PipStatusMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
@@ -460,6 +461,22 @@ abstract class TestHostVideoPlayerApi {
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive was null, expected non-null TextureMessage.');
           final PipStatusMessage output = api.isPictureInPictureActive(arg_msg!);
           return <Object?, Object?>{'result': output};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.setAutoPictureInPicture', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setAutoPictureInPicture was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final PipStatusMessage? arg_msg = (args[0] as PipStatusMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setAutoPictureInPicture was null, expected non-null PipStatusMessage.');
+          api.setAutoPictureInPicture(arg_msg!);
+          return <Object?, Object?>{};
         });
       }
     }

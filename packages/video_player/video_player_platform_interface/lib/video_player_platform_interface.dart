@@ -147,6 +147,16 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError(
         'isPictureInPictureActive() has not been implemented.');
   }
+
+  /// Enables or disables automatic Picture-in-Picture.
+  ///
+  /// When enabled, PiP starts automatically when the user navigates away.
+  /// Supported on Android 12+ (API 31+) and iOS 14.2+.
+  /// On Android 8-11, the Flutter side provides a fallback.
+  Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
+    throw UnimplementedError(
+        'setAutoPictureInPicture() has not been implemented.');
+  }
 }
 
 /// バッファを調整するための各パラメーター
@@ -306,6 +316,7 @@ class VideoEvent {
     this.size,
     this.rotationCorrection,
     this.buffered,
+    this.isAutoPipEnabled,
   });
 
   /// The type of the event.
@@ -331,6 +342,11 @@ class VideoEvent {
   /// Only used if [eventType] is [VideoEventType.bufferingUpdate].
   final List<DurationRange>? buffered;
 
+  /// Whether automatic Picture-in-Picture is enabled.
+  ///
+  /// Only used if [eventType] is [VideoEventType.autoPipChanged].
+  final bool? isAutoPipEnabled;
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -340,7 +356,8 @@ class VideoEvent {
             duration == other.duration &&
             size == other.size &&
             rotationCorrection == other.rotationCorrection &&
-            listEquals(buffered, other.buffered);
+            listEquals(buffered, other.buffered) &&
+            isAutoPipEnabled == other.isAutoPipEnabled;
   }
 
   @override
@@ -350,6 +367,7 @@ class VideoEvent {
         size,
         rotationCorrection,
         buffered,
+        isAutoPipEnabled,
       );
 }
 
@@ -384,6 +402,9 @@ enum VideoEventType {
 
   /// The system requests restoring the user interface from Picture-in-Picture.
   pipRestoreUserInterface,
+
+  /// Auto Picture-in-Picture enabled state changed.
+  autoPipChanged,
 }
 
 /// Describes a discrete segment of time within a video using a [start] and

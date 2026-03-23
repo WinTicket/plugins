@@ -137,4 +137,6 @@ abstract class AVFoundationVideoPlayerApi {
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   @ObjCSelector('isPictureInPictureActive:')
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
+  @ObjCSelector('setAutoPictureInPicture:')
+  void setAutoPictureInPicture(PipStatusMessage msg);
 }

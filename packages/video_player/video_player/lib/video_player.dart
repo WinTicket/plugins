@@ -48,6 +48,7 @@ class VideoPlayerValue {
     this.isLooping = false,
     this.isBuffering = false,
     this.isPipActive = false,
+    this.isAutoPipEnabled = false,
     this.volume = 1.0,
     this.playbackSpeed = 1.0,
     this.rotationCorrection = 0,
@@ -102,6 +103,9 @@ class VideoPlayerValue {
 
   /// True if the video is currently in Picture-in-Picture mode.
   final bool isPipActive;
+
+  /// True if automatic Picture-in-Picture is enabled.
+  final bool isAutoPipEnabled;
 
   /// The current volume of the playback.
   final double volume;
@@ -158,6 +162,7 @@ class VideoPlayerValue {
     bool? isLooping,
     bool? isBuffering,
     bool? isPipActive,
+    bool? isAutoPipEnabled,
     double? volume,
     double? playbackSpeed,
     int? rotationCorrection,
@@ -175,6 +180,7 @@ class VideoPlayerValue {
       isLooping: isLooping ?? this.isLooping,
       isBuffering: isBuffering ?? this.isBuffering,
       isPipActive: isPipActive ?? this.isPipActive,
+      isAutoPipEnabled: isAutoPipEnabled ?? this.isAutoPipEnabled,
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
@@ -198,6 +204,7 @@ class VideoPlayerValue {
         'isLooping: $isLooping, '
         'isBuffering: $isBuffering, '
         'isPipActive: $isPipActive, '
+        'isAutoPipEnabled: $isAutoPipEnabled, '
         'volume: $volume, '
         'playbackSpeed: $playbackSpeed, '
         'errorDescription: $errorDescription)';
@@ -435,6 +442,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           value = value.copyWith(isPipActive: false);
           break;
         case VideoEventType.pipRestoreUserInterface:
+          break;
+        case VideoEventType.autoPipChanged:
+          value = value.copyWith(isAutoPipEnabled: event.isAutoPipEnabled);
           break;
       }
     }
@@ -747,6 +757,21 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     return _videoPlayerPlatform.isPictureInPictureActive(_textureId);
   }
 
+  /// Enables or disables automatic Picture-in-Picture.
+  ///
+  /// When enabled:
+  /// - Android 12+ (API 31+): Uses native setAutoEnterEnabled
+  /// - Android 8-11 (API 26-30): Flutter-side fallback via AppLifecycleState
+  /// - iOS 14.2+: Uses canStartPictureInPictureAutomaticallyFromInline
+  ///
+  /// On unsupported versions, this is a no-op.
+  Future<void> setAutoPictureInPicture(bool enabled) async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
+  }
+
   /// Sets the caption offset.
   ///
   /// The [offset] will be used when getting the correct caption for a specific position.
@@ -843,6 +868,15 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
       case AppLifecycleState.paused:
         // Don't pause during PiP — the video should keep playing in the PiP window.
         if (_controller.value.isPipActive) {
+          return;
+        }
+        // API 26-30 fallback: auto PiP enabled and playing → start PiP manually.
+        // On API 31+, native setAutoEnterEnabled triggers PiP before this callback,
+        // so isPipActive is already true and we hit the early return above.
+        if (_controller.value.isAutoPipEnabled &&
+            _controller.value.isPlaying &&
+            defaultTargetPlatform == TargetPlatform.android) {
+          _controller.startPictureInPicture();
           return;
         }
         _wasPlayingBeforePause = _controller.value.isPlaying;

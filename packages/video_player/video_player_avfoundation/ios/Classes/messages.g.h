@@ -177,6 +177,7 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (nullable FLTPipStatusMessage *)isPictureInPictureSupported:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
 - (nullable FLTPipStatusMessage *)isPictureInPictureActive:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
+- (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 @end
 
 extern void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMessenger, NSObject<FLTAVFoundationVideoPlayerApi> *_Nullable api);
