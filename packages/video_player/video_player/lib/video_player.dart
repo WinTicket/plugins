@@ -778,9 +778,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Set automatically by [_VideoPlayerState].
   Rect? Function()? pipSourceRectProvider;
 
+
   void _completePipRestore() {
     final rect = pipSourceRectProvider?.call();
-    if (rect != null && !_isDisposedOrNotInitialized) {
+    if (_isDisposedOrNotInitialized) return;
+
+    if (rect != null) {
       _videoPlayerPlatform.completePipRestoreWithSourceRect(
         _textureId,
         rect.left,

@@ -596,6 +596,27 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   [self updatePlayingState];
 
+  // 画面外復帰時に追加された黒オーバーレイをフェードアウトで削除する。
+  UIWindow *keyWindow = nil;
+  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+        if (window.isKeyWindow) { keyWindow = window; break; }
+      }
+      if (keyWindow) break;
+    }
+  }
+  if (keyWindow) {
+    UIView *overlay = [keyWindow.rootViewController.view viewWithTag:9999];
+    if (overlay) {
+      [UIView animateWithDuration:0.3 animations:^{
+        overlay.alpha = 0;
+      } completion:^(BOOL finished) {
+        [overlay removeFromSuperview];
+      }];
+    }
+  }
+
   // Reset frame and unhide the layer. The layer was hidden in
   // completePipRestoreWithSourceRect to prevent iOS internal animations.
   if (@available(iOS 14.2, *)) {
@@ -615,6 +636,26 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
+  // PiP 復帰中は黒背景オーバーレイで Flutter view を覆う。
+  // PiP ウィンドウ（システムウィンドウ）はオーバーレイの上に描画されるため
+  // 正常に見え、Flutter テクスチャの遷移アーティファクトが隠される。
+  // didStopPictureInPicture でフェードアウト削除する。
+  UIWindow *keyWindow = nil;
+  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+        if (window.isKeyWindow) { keyWindow = window; break; }
+      }
+      if (keyWindow) break;
+    }
+  }
+  if (keyWindow) {
+    UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
+    overlay.backgroundColor = [UIColor blackColor];
+    overlay.tag = 9999;
+    [keyWindow.rootViewController.view addSubview:overlay];
+  }
+
   // Hold the completionHandler and wait for Dart to send the video source rect.
   // This allows PiP to animate back to the correct video position.
   self.pipRestoreCompletionHandler = completionHandler;
