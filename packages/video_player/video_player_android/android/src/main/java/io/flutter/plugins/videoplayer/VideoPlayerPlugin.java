@@ -4,10 +4,18 @@
 
 package io.flutter.plugins.videoplayer;
 
+import static java.lang.Math.toIntExact;
+
 import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.util.LongSparseArray;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.OnPictureInPictureModeChangedProvider;
+import androidx.core.app.PictureInPictureModeChangedInfo;
+import androidx.core.util.Consumer;
+import com.google.android.exoplayer2.DefaultLoadControl;
 import io.flutter.FlutterInjector;
 import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -29,20 +37,7 @@ import io.flutter.plugins.videoplayer.Messages.PositionMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
 import io.flutter.plugins.videoplayer.Messages.VolumeMessage;
 import io.flutter.view.TextureRegistry;
-import static java.lang.Math.toIntExact;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.core.app.OnPictureInPictureModeChangedProvider;
-import androidx.core.app.PictureInPictureModeChangedInfo;
-import androidx.core.util.Consumer;
-
-import com.google.android.exoplayer2.DefaultLoadControl;
-
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
-import javax.net.ssl.HttpsURLConnection;
 
 /** Android platform implementation of the VideoPlayerPlugin. */
 public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidVideoPlayerApi {
@@ -373,6 +368,15 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   public void setAutoPictureInPicture(@NonNull PipStatusMessage msg) {
     VideoPlayer player = videoPlayers.get(msg.getTextureId());
     if (player != null) {
+      // Disable auto PiP on all other players to avoid Activity-level params conflict.
+      if (msg.getValue()) {
+        for (int i = 0; i < videoPlayers.size(); i++) {
+          long key = videoPlayers.keyAt(i);
+          if (key != msg.getTextureId() && videoPlayers.valueAt(i).isAutoPipEnabled()) {
+            videoPlayers.valueAt(i).setAutoPictureInPicture(false);
+          }
+        }
+      }
       player.setAutoPictureInPicture(msg.getValue());
     }
   }

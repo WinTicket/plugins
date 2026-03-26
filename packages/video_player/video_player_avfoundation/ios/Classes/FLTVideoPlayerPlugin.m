@@ -239,8 +239,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
   [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
 
-  // Auto-setup PiP using the invisible player layer
-  [self setupPictureInPicture];
+  // PiP setup is deferred to startPictureInPicture / setAutoPictureInPicture
+  // to avoid creating multiple AVPictureInPictureControllers simultaneously,
+  // which causes isPictureInPicturePossible to return NO on iOS.
 
   return self;
 }
@@ -438,7 +439,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
           }
         }
         if (keyWindow) break;
-      }
+      } 
       if (keyWindow) {
         [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
       }
@@ -672,26 +673,24 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   // を利用する必要がある。seekableTimeRangesが有無で条件分岐する
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
-     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
-     return FLTCMTimeToMillis(seekableDuration.duration);
-  }
-  else {
-     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+    CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+    return FLTCMTimeToMillis(seekableDuration.duration);
+  } else {
+    return FLTCMTimeToMillis(_player.currentItem.asset.duration);
   }
 }
 
 - (int64_t)durationStartAt {
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
-     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
-     return FLTCMTimeToMillis(seekableDuration.start);
-  }
-  else {
-     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+    CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+    return FLTCMTimeToMillis(seekableDuration.start);
+  } else {
+    return FLTCMTimeToMillis(_player.currentItem.asset.duration);
   }
 }
 
-- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler  {
+- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler {
   // TODO(stuartmorgan): Update this to use completionHandler: to only return
   // once the seek operation is complete once the Pigeon API is updated to a
   // version that handles async calls.
@@ -983,8 +982,18 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return result;
 }
 
+- (void)tearDownPictureInPictureForAllPlayersExcept:(NSNumber *)textureId {
+  [self.playersByTextureId enumerateKeysAndObjectsUsingBlock:^(NSNumber *key, FLTVideoPlayer *player, BOOL *stop) {
+    if (![key isEqualToNumber:textureId]) {
+      [player tearDownPictureInPicture];
+    }
+  }];
+}
+
 - (void)startPictureInPicture:(FLTTextureMessage *)input error:(FlutterError **)error {
+  [self tearDownPictureInPictureForAllPlayersExcept:input.textureId];
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player setupPictureInPicture];
   [player startPictureInPicture];
 }
 
@@ -1007,13 +1016,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input
                           error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId.integerValue)];
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  if (input.value.boolValue) {
+    [self tearDownPictureInPictureForAllPlayersExcept:input.textureId];
+    [player setupPictureInPicture];
+  }
   [player setAutoPictureInPicture:input.value.boolValue];
 }
 
 - (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input
                                    error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId.integerValue)];
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   CGRect rect = CGRectMake(
       input.x.doubleValue,
       input.y.doubleValue,
