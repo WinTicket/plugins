@@ -58,6 +58,24 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<void> setMaxVideoResolution(int? width, int? height) async {}
 
   @override
+  Future<void> startPictureInPicture() async {}
+
+  @override
+  Future<void> stopPictureInPicture() async {}
+
+  @override
+  Future<bool> isPictureInPictureSupported() async => false;
+
+  @override
+  Future<bool> isPictureInPictureActive() async => false;
+
+  @override
+  Future<void> setAutoPictureInPicture(bool enabled) async {}
+
+  @override
+  Rect? Function()? pipSourceRectProvider;
+
+  @override
   Future<void> initialize() async {}
 
   @override
@@ -87,10 +105,7 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   ) async {}
 
   @override
-  Future<bool?> get isPlaying async => value.isPlaying;
-
-  @override
-  Future<void> setBuffer(Buffer buffer) async {}
+  Future<bool> get isPlaying async => value.isPlaying;
 }
 
 Future<ClosedCaptionFile> _loadClosedCaption() async =>
@@ -857,6 +872,8 @@ void main() {
       expect(uninitialized.isPlaying, isFalse);
       expect(uninitialized.isLooping, isFalse);
       expect(uninitialized.isBuffering, isFalse);
+      expect(uninitialized.isPipActive, isFalse);
+      expect(uninitialized.isAutoPipEnabled, isFalse);
       expect(uninitialized.volume, 1.0);
       expect(uninitialized.playbackSpeed, 1.0);
       expect(uninitialized.errorDescription, isNull);
@@ -878,6 +895,8 @@ void main() {
       expect(error.isPlaying, isFalse);
       expect(error.isLooping, isFalse);
       expect(error.isBuffering, isFalse);
+      expect(error.isPipActive, isFalse);
+      expect(error.isAutoPipEnabled, isFalse);
       expect(error.volume, 1.0);
       expect(error.playbackSpeed, 1.0);
       expect(error.errorDescription, errorMessage);
@@ -931,6 +950,8 @@ void main() {
           'isPlaying: true, '
           'isLooping: true, '
           'isBuffering: true, '
+          'isPipActive: false, '
+          'isAutoPipEnabled: false, '
           'volume: 0.5, '
           'playbackSpeed: 1.5, '
           'errorDescription: null)');
@@ -1081,6 +1102,31 @@ void main() {
       await controller.setMaxVideoResolution(null, null);
       expect(fakeVideoPlayerPlatform.lastMaxVideoWidth, 0);
       expect(fakeVideoPlayerPlatform.lastMaxVideoHeight, 0);
+      await controller.dispose();
+    });
+  });
+
+  group('pictureInPicture', () {
+    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
+
+    setUp(() {
+      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
+    });
+
+    test('public API is usable as no-op', () async {
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      await controller.initialize();
+      final int callCount = fakeVideoPlayerPlatform.calls.length;
+
+      await controller.startPictureInPicture();
+      await controller.stopPictureInPicture();
+      await controller.setAutoPictureInPicture(true);
+
+      expect(await controller.isPictureInPictureSupported(), isFalse);
+      expect(await controller.isPictureInPictureActive(), isFalse);
+      expect(fakeVideoPlayerPlatform.calls.length, callCount);
       await controller.dispose();
     });
   });
