@@ -367,19 +367,57 @@ final class VideoPlayer {
       pipRequestHandler.onPipRequested();
     }
 
-    PictureInPictureParams params =
-        new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
-    activity.enterPictureInPictureMode(params);
+    // Manual PiP runs in a dedicated activity so the main app stays usable behind the PiP
+    // window and the window shows nothing but the video.
+    PipActivityController.launch(activity, this);
+  }
+
+  /** Redirects video output to the dedicated PiP activity's surface. */
+  void attachPipSurface(@NonNull Surface pipSurface) {
+    exoPlayer.setVideoSurface(pipSurface);
+  }
+
+  /** Restores video output to the Flutter texture. Safe to call repeatedly. */
+  void restoreFlutterSurface() {
+    if (surface != null) {
+      exoPlayer.setVideoSurface(surface);
+    }
+  }
+
+  void notifyPipStarted() {
+    if (videoPlayerCallbacks != null) {
+      videoPlayerCallbacks.onPictureInPictureStarted();
+    }
+  }
+
+  void notifyPipStopped() {
+    if (videoPlayerCallbacks != null) {
+      videoPlayerCallbacks.onPictureInPictureStopped();
+    }
   }
 
   void stopPictureInPicture() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
       return;
     }
+    if (PipActivityController.getPlayer() == this && PipActivityController.isInPipMode()) {
+      // Bring the main task forward first so ending PiP doesn't drop the user on the launcher.
+      if (activity != null) {
+        bringHostActivityToFront();
+      }
+      PipActivityController.endPip(false, "stopPictureInPicture");
+      return;
+    }
     if (activity == null || !activity.isInPictureInPictureMode()) {
       return;
     }
-    // Android has no direct "exit PiP" API. Bring the activity to front to restore full screen.
+    // Auto PiP keeps the host activity itself in PiP, and Android has no direct "exit PiP" API.
+    // Bring the activity to front to restore full screen.
+    bringHostActivityToFront();
+  }
+
+  /** Brings the host activity to the front, restoring it to full screen. */
+  private void bringHostActivityToFront() {
     Intent intent = new Intent(activity, activity.getClass());
     intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     activity.startActivity(intent);
@@ -395,6 +433,9 @@ final class VideoPlayer {
   }
 
   boolean isPictureInPictureActive() {
+    if (PipActivityController.getPlayer() == this && PipActivityController.isInPipMode()) {
+      return true;
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || activity == null) {
       return false;
     }
@@ -434,8 +475,17 @@ final class VideoPlayer {
     return autoPipEnabled;
   }
 
+  /**
+   * Temporarily clears autoEnterEnabled on the host activity while the dedicated PiP activity is
+   * showing, so leaving the app cannot pull the host activity into a second PiP window. The
+   * autoPipEnabled flag is kept so {@link #updateAutoPipParams()} can restore the params later.
+   */
+  void suspendAutoEnter() {
+    applyAutoPipParams(false);
+  }
+
   /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
-  private Rational getVideoAspectRatio() {
+  Rational getVideoAspectRatio() {
     Format videoFormat = exoPlayer.getVideoFormat();
     if (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0) {
       return new Rational(videoFormat.width, videoFormat.height);
@@ -490,21 +540,25 @@ final class VideoPlayer {
   }
 
   /** Re-applies auto PiP params with the current video aspect ratio if enabled. */
-  private void updateAutoPipParams() {
-    if (!autoPipEnabled || activity == null) {
+  void updateAutoPipParams() {
+    applyAutoPipParams(true);
+  }
+
+  /** Sets host-activity PiP params with the given autoEnter flag, if auto PiP is enabled. */
+  private void applyAutoPipParams(boolean autoEnterEnabled) {
+    if (!autoPipEnabled || activity == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
       return;
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      PictureInPictureParams params =
-          new PictureInPictureParams.Builder()
-              .setAspectRatio(getVideoAspectRatio())
-              .setAutoEnterEnabled(true)
-              .build();
-      activity.setPictureInPictureParams(params);
-    }
+    activity.setPictureInPictureParams(
+        new PictureInPictureParams.Builder()
+            .setAspectRatio(getVideoAspectRatio())
+            .setAutoEnterEnabled(autoEnterEnabled)
+            .build());
   }
 
   void dispose() {
+    // End any dedicated PiP session before releasing the player it renders from.
+    PipActivityController.onPlayerDisposed(this);
     activity = null;
     if (isInitialized) {
       exoPlayer.stop();

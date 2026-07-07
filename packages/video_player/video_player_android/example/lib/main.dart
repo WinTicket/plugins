@@ -54,34 +54,8 @@ class _AppState extends State<_App> {
     super.dispose();
   }
 
-  /// Returns the controller that is currently in PiP mode, or null.
-  MiniController? get _pipController {
-    if (_assetController.isPipActive) {
-      return _assetController;
-    }
-    if (_remoteController.isPipActive) {
-      return _remoteController;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final MiniController? pip = _pipController;
-
-    // PiP mode: show only the video, filling the entire window.
-    if (pip != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: AspectRatio(
-            aspectRatio: pip.value.aspectRatio,
-            child: VideoPlayer(pip),
-          ),
-        ),
-      );
-    }
-
     // Normal mode: tabbed layout with controls.
     return DefaultTabController(
       length: 2,

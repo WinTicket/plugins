@@ -1,3 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="io.flutter.plugins.videoplayer">
+  <application>
+    <!-- Dedicated activity that hosts only the video surface while in Picture-in-Picture.
+         Declared here so consuming apps need no manifest changes; it is stacked on the same
+         task as the host activity. -->
+    <activity
+      android:name="io.flutter.plugins.videoplayer.PipActivity"
+      android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
+      android:excludeFromRecents="true"
+      android:exported="false"
+      android:launchMode="singleTop"
+      android:supportsPictureInPicture="true"
+      android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+  </application>
 </manifest>

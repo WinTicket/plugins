@@ -64,6 +64,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
                     injector.flutterLoader()::getLookupKeyForAsset,
                     binding.getTextureRegistry());
     flutterState.startListening(this, binding.getBinaryMessenger());
+    PipActivityController.setOnPipEndedListener(this::onDedicatedPipEnded);
   }
 
   @Override
@@ -71,9 +72,25 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
     if (flutterState == null) {
       Log.wtf(TAG, "Detached from the engine before registering to it.");
     }
+    PipActivityController.setOnPipEndedListener(null);
     flutterState.stopListening(binding.getBinaryMessenger());
     flutterState = null;
     onDestroy();
+  }
+
+  // Called when the dedicated PiP activity session ends, however it ended.
+  private void onDedicatedPipEnded(@Nullable VideoPlayer endedPlayer) {
+    // Restore host-activity autoEnter params suspended while the dedicated PiP was showing.
+    for (int i = 0; i < videoPlayers.size(); i++) {
+      videoPlayers.valueAt(i).updateAutoPipParams();
+    }
+    // Mirror the host-activity listener: keep lastPipPlayerId only while auto PiP is enabled.
+    if (endedPlayer == null || endedPlayer.isAutoPipEnabled()) {
+      return;
+    }
+    if (videoPlayers.get(lastPipPlayerId) == endedPlayer) {
+      lastPipPlayerId = -1;
+    }
   }
 
   // -- ActivityAware implementation --
@@ -337,6 +354,11 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   @Override
   public void startPictureInPicture(TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    // Suspend host-activity auto PiP while the dedicated PiP activity is showing, so leaving
+    // the app cannot create a second PiP window. Restored in onDedicatedPipEnded.
+    for (int i = 0; i < videoPlayers.size(); i++) {
+      videoPlayers.valueAt(i).suspendAutoEnter();
+    }
     player.startPictureInPicture();
   }
 
