@@ -75,6 +75,13 @@ class BufferMessage {
   int second;
 }
 
+class MaxVideoResolutionMessage {
+  MaxVideoResolutionMessage(this.textureId, this.width, this.height);
+  int textureId;
+  int width;
+  int height;
+}
+
 class IsPlayingMessage {
   IsPlayingMessage(this.textureId, this.isPlaying);
   int textureId;
@@ -112,6 +119,8 @@ abstract class AVFoundationVideoPlayerApi {
   void setMixWithOthers(MixWithOthersMessage msg);
   @ObjCSelector('setBuffer:')
   void setBuffer(BufferMessage msg);
+  @ObjCSelector('setMaxVideoResolution:')
+  void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   @ObjCSelector('isPlaying:')
   IsPlayingMessage isPlaying(TextureMessage msg);
 }

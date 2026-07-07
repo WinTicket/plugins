@@ -69,6 +69,8 @@ final class VideoPlayer {
 
   private final VideoPlayerOptions options;
 
+  private final DefaultTrackSelector trackSelector;
+
   VideoPlayer(
       Context context,
       EventChannel eventChannel,
@@ -81,7 +83,10 @@ final class VideoPlayer {
     this.textureEntry = textureEntry;
     this.options = options;
 
-    ExoPlayer.Builder exoPlayerBuilder = new ExoPlayer.Builder(context);
+    this.trackSelector = new DefaultTrackSelector(context);
+
+    ExoPlayer.Builder exoPlayerBuilder =
+        new ExoPlayer.Builder(context).setTrackSelector(trackSelector);
     if (options.buffer != null) {
       DefaultLoadControl.Builder defaultLoadControlBuilder = new DefaultLoadControl.Builder();
       defaultLoadControlBuilder.setBufferDurationsMs(
@@ -128,10 +133,12 @@ final class VideoPlayer {
       EventChannel eventChannel,
       TextureRegistry.SurfaceTextureEntry textureEntry,
       VideoPlayerOptions options,
-      QueuingEventSink eventSink) {
+      QueuingEventSink eventSink,
+      DefaultTrackSelector trackSelector) {
     this.eventChannel = eventChannel;
     this.textureEntry = textureEntry;
     this.options = options;
+    this.trackSelector = trackSelector;
 
     setUpVideoPlayer(exoPlayer, eventSink);
   }
@@ -295,6 +302,16 @@ final class VideoPlayer {
     final PlaybackParameters playbackParameters = new PlaybackParameters(((float) value));
 
     exoPlayer.setPlaybackParameters(playbackParameters);
+  }
+
+  void setMaxVideoResolution(int width, int height) {
+    DefaultTrackSelector.Parameters.Builder builder = trackSelector.buildUponParameters();
+    if (width > 0 && height > 0) {
+      builder.setMaxVideoSize(width, height);
+    } else {
+      builder.setMaxVideoSize(Integer.MAX_VALUE, Integer.MAX_VALUE);
+    }
+    trackSelector.setParameters(builder.build());
   }
 
   void seekTo(int location) {

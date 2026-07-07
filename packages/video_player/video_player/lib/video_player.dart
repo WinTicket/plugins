@@ -298,6 +298,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
+  int? _maxVideoWidth;
+  int? _maxVideoHeight;
   Timer? _timerForPosition;
   Timer? _timerForDuration;
   bool _isDisposed = false;
@@ -398,6 +400,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           _applyLooping();
           _applyVolume();
           _applyPlayPause();
+          _applyMaxVideoResolution();
           _applyUpdateDurationPeriodic();
           break;
         case VideoEventType.completed:
@@ -577,6 +580,19 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     );
   }
 
+  Future<void> _applyMaxVideoResolution() async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    final int sanitizedWidth = _maxVideoWidth ?? 0;
+    final int sanitizedHeight = _maxVideoHeight ?? 0;
+    await _videoPlayerPlatform.setMaxVideoResolution(
+      _textureId,
+      sanitizedWidth,
+      sanitizedHeight,
+    );
+  }
+
   /// The position in the current video.
   Future<Duration?> get position async {
     if (_isDisposed) {
@@ -660,6 +676,20 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
     value = value.copyWith(playbackSpeed: speed);
     await _applyPlaybackSpeed();
+  }
+
+  /// Sets the maximum video resolution. Pass `null` or values <= 0 to clear.
+  Future<void> setMaxVideoResolution(int? width, int? height) async {
+    if (width != null && width < 0) {
+      throw ArgumentError.value(width, 'width', 'Width must be positive when provided.');
+    }
+    if (height != null && height < 0) {
+      throw ArgumentError.value(height, 'height', 'Height must be positive when provided.');
+    }
+
+    _maxVideoWidth = (width != null && width > 0) ? width : null;
+    _maxVideoHeight = (height != null && height > 0) ? height : null;
+    await _applyMaxVideoResolution();
   }
 
   /// Sets the caption offset.

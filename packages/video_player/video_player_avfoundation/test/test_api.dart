@@ -62,6 +62,10 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else 
+    if (value is MaxVideoResolutionMessage) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else 
 {
       super.writeValue(buffer, value);
     }
@@ -102,9 +106,12 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       case 138:       
         return VolumeMessage.decode(readValue(buffer)!);
       
+      case 139:       
+        return MaxVideoResolutionMessage.decode(readValue(buffer)!);
+      
       default:      
         return super.readValueOfType(type, buffer);
-      
+
     }
   }
 }
@@ -125,6 +132,7 @@ abstract class TestHostVideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
@@ -344,6 +352,22 @@ abstract class TestHostVideoPlayerApi {
           final BufferMessage? arg_msg = (args[0] as BufferMessage?);
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setBuffer was null, expected non-null BufferMessage.');
           api.setBuffer(arg_msg!);
+          return <Object?, Object?>{};
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AVFoundationVideoPlayerApi.setMaxVideoResolution', codec, binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMockMessageHandler(null);
+      } else {
+        channel.setMockMessageHandler((Object? message) async {
+          assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setMaxVideoResolution was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final MaxVideoResolutionMessage? arg_msg = (args[0] as MaxVideoResolutionMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.setMaxVideoResolution was null, expected non-null MaxVideoResolutionMessage.');
+          api.setMaxVideoResolution(arg_msg!);
           return <Object?, Object?>{};
         });
       }

@@ -114,6 +114,11 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('setBuffer() has not been implemented.');
   }
 
+  /// Sets the max video resolution. Width or height null/<=0 will clear the limit.
+  Future<void> setMaxVideoResolution(int textureId, int? width, int? height) {
+    throw UnimplementedError('setMaxVideoResolution() has not been implemented.');
+  }
+
   /// Get latest isPlaying status from ExoPlayer/AVPlayer
   Future<bool> getIsPlaying(int textureId) {
     throw UnimplementedError('isPlaying() has not been implemented.');

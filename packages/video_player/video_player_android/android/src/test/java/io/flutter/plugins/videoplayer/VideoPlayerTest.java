@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
 @RunWith(RobolectricTestRunner.class)
 public class VideoPlayerTest {
@@ -29,6 +31,7 @@ public class VideoPlayerTest {
   private TextureRegistry.SurfaceTextureEntry fakeSurfaceTextureEntry;
   private VideoPlayerOptions fakeVideoPlayerOptions;
   private QueuingEventSink fakeEventSink;
+  private DefaultTrackSelector trackSelector;
 
   @Captor private ArgumentCaptor<HashMap<String, Object>> eventCaptor;
 
@@ -41,6 +44,7 @@ public class VideoPlayerTest {
     fakeSurfaceTextureEntry = mock(TextureRegistry.SurfaceTextureEntry.class);
     fakeVideoPlayerOptions = mock(VideoPlayerOptions.class);
     fakeEventSink = mock(QueuingEventSink.class);
+    trackSelector = new DefaultTrackSelector(RuntimeEnvironment.getApplication());
   }
 
   @Test
@@ -51,7 +55,8 @@ public class VideoPlayerTest {
             fakeEventChannel,
             fakeSurfaceTextureEntry,
             fakeVideoPlayerOptions,
-            fakeEventSink);
+            fakeEventSink,
+            trackSelector);
     Format testFormat =
         new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(90).build();
 
@@ -79,7 +84,8 @@ public class VideoPlayerTest {
             fakeEventChannel,
             fakeSurfaceTextureEntry,
             fakeVideoPlayerOptions,
-            fakeEventSink);
+            fakeEventSink,
+            trackSelector);
     Format testFormat =
         new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(270).build();
 
@@ -107,7 +113,8 @@ public class VideoPlayerTest {
             fakeEventChannel,
             fakeSurfaceTextureEntry,
             fakeVideoPlayerOptions,
-            fakeEventSink);
+            fakeEventSink,
+            trackSelector);
     Format testFormat =
         new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(0).build();
 
@@ -135,7 +142,8 @@ public class VideoPlayerTest {
             fakeEventChannel,
             fakeSurfaceTextureEntry,
             fakeVideoPlayerOptions,
-            fakeEventSink);
+            fakeEventSink,
+            trackSelector);
     Format testFormat =
         new Format.Builder().setWidth(100).setHeight(200).setRotationDegrees(180).build();
 

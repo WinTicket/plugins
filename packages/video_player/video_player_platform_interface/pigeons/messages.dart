@@ -50,6 +50,12 @@ class BufferMessage {
   int bufferForPlaybackAfterRebufferMs;
 }
 
+class MaxVideoResolutionMessage {
+  int textureId;
+  int width;
+  int height;
+}
+
 class IsPlayingMessage {
   int textureId;
   bool isPlaying;
@@ -69,6 +75,7 @@ abstract class VideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void setBuffer(BufferMessage msg);
+  void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
 }
 

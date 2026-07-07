@@ -289,6 +289,31 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 }
 @end
 
+@implementation FLTMaxVideoResolutionMessage
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    width:(NSNumber *)width
+    height:(NSNumber *)height {
+  FLTMaxVideoResolutionMessage* pigeonResult = [[FLTMaxVideoResolutionMessage alloc] init];
+  pigeonResult.textureId = textureId;
+  pigeonResult.width = width;
+  pigeonResult.height = height;
+  return pigeonResult;
+}
++ (FLTMaxVideoResolutionMessage *)fromMap:(NSDictionary *)dict {
+  FLTMaxVideoResolutionMessage *pigeonResult = [[FLTMaxVideoResolutionMessage alloc] init];
+  pigeonResult.textureId = GetNullableObject(dict, @"textureId");
+  NSAssert(pigeonResult.textureId != nil, @"");
+  pigeonResult.width = GetNullableObject(dict, @"width");
+  NSAssert(pigeonResult.width != nil, @"");
+  pigeonResult.height = GetNullableObject(dict, @"height");
+  NSAssert(pigeonResult.height != nil, @"");
+  return pigeonResult;
+}
+- (NSDictionary *)toMap {
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.textureId ? self.textureId : [NSNull null]), @"textureId", (self.width ? self.width : [NSNull null]), @"width", (self.height ? self.height : [NSNull null]), @"height", nil];
+}
+@end
+
 @implementation FLTIsPlayingMessage
 + (instancetype)makeWithTextureId:(NSNumber *)textureId
     isPlaying:(NSNumber *)isPlaying {
@@ -349,6 +374,9 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
     case 138:     
       return [FLTVolumeMessage fromMap:[self readValue]];
     
+    case 139:     
+      return [FLTMaxVideoResolutionMessage fromMap:[self readValue]];
+    
     default:    
       return [super readValueOfType:type];
     
@@ -403,6 +431,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
   } else 
   if ([value isKindOfClass:[FLTVolumeMessage class]]) {
     [self writeByte:138];
+    [self writeValue:[value toMap]];
+  } else 
+  if ([value isKindOfClass:[FLTMaxVideoResolutionMessage class]]) {
+    [self writeByte:139];
     [self writeValue:[value toMap]];
   } else 
 {
@@ -705,6 +737,26 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
         FLTBufferMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
         FlutterError *error;
         [api setBuffer:arg_msg error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.setMaxVideoResolution"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setMaxVideoResolution:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setMaxVideoResolution:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTMaxVideoResolutionMessage *arg_msg = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api setMaxVideoResolution:arg_msg error:&error];
         callback(wrapResult(nil, error));
       }];
     }
