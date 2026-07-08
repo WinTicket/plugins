@@ -216,7 +216,14 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> startPictureInPicture(int textureId) {
+  Future<void> startPictureInPicture(
+    int textureId, {
+    double? sourceRectLeft,
+    double? sourceRectTop,
+    double? sourceRectWidth,
+    double? sourceRectHeight,
+  }) {
+    // iOS animates from the AVPlayerLayer itself; the source rect is unused.
     return _api.startPictureInPicture(TextureMessage(textureId: textureId));
   }
 

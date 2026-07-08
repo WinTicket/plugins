@@ -22,10 +22,6 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(128);
       writeValue(buffer, value.encode());
     } else 
-    if (value is MaxVideoResolutionMessage) {
-      buffer.putUint8(138);
-      writeValue(buffer, value.encode());
-    } else 
     if (value is CreateMessage) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
@@ -42,24 +38,36 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else 
-    if (value is MixWithOthersMessage) {
+    if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PlaybackSpeedMessage) {
+    if (value is MixWithOthersMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PositionMessage) {
+    if (value is PipStatusMessage) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else 
-    if (value is TextureMessage) {
+    if (value is PlaybackSpeedMessage) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else 
-    if (value is VolumeMessage) {
+    if (value is PositionMessage) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    } else 
+    if (value is StartPipMessage) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    } else 
+    if (value is TextureMessage) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else 
+    if (value is VolumeMessage) {
+      buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else 
 {
@@ -71,9 +79,6 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
     switch (type) {
       case 128:       
         return BufferMessage.decode(readValue(buffer)!);
-      
-      case 138:       
-        return MaxVideoResolutionMessage.decode(readValue(buffer)!);
       
       case 129:       
         return CreateMessage.decode(readValue(buffer)!);
@@ -88,18 +93,27 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
         return LoopingMessage.decode(readValue(buffer)!);
       
       case 133:       
-        return MixWithOthersMessage.decode(readValue(buffer)!);
+        return MaxVideoResolutionMessage.decode(readValue(buffer)!);
       
       case 134:       
-        return PlaybackSpeedMessage.decode(readValue(buffer)!);
+        return MixWithOthersMessage.decode(readValue(buffer)!);
       
       case 135:       
-        return PositionMessage.decode(readValue(buffer)!);
+        return PipStatusMessage.decode(readValue(buffer)!);
       
       case 136:       
-        return TextureMessage.decode(readValue(buffer)!);
+        return PlaybackSpeedMessage.decode(readValue(buffer)!);
       
       case 137:       
+        return PositionMessage.decode(readValue(buffer)!);
+      
+      case 138:       
+        return StartPipMessage.decode(readValue(buffer)!);
+      
+      case 139:       
+        return TextureMessage.decode(readValue(buffer)!);
+      
+      case 140:       
         return VolumeMessage.decode(readValue(buffer)!);
       
       default:      
@@ -126,7 +140,7 @@ abstract class TestHostVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void startPictureInPicture(TextureMessage msg);
+  void startPictureInPicture(StartPipMessage msg);
   void stopPictureInPicture(TextureMessage msg);
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);
@@ -378,8 +392,8 @@ abstract class TestHostVideoPlayerApi {
         channel.setMockMessageHandler((Object? message) async {
           assert(message != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture was null, expected non-null TextureMessage.');
+          final StartPipMessage? arg_msg = (args[0] as StartPipMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture was null, expected non-null StartPipMessage.');
           api.startPictureInPicture(arg_msg!);
           return <Object?, Object?>{};
         });

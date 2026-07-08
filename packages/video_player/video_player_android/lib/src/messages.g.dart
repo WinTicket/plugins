@@ -327,6 +327,43 @@ class PipStatusMessage {
   }
 }
 
+class StartPipMessage {
+  StartPipMessage({
+    required this.textureId,
+    this.sourceRectLeft,
+    this.sourceRectTop,
+    this.sourceRectWidth,
+    this.sourceRectHeight,
+  });
+
+  int textureId;
+  double? sourceRectLeft;
+  double? sourceRectTop;
+  double? sourceRectWidth;
+  double? sourceRectHeight;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['sourceRectLeft'] = sourceRectLeft;
+    pigeonMap['sourceRectTop'] = sourceRectTop;
+    pigeonMap['sourceRectWidth'] = sourceRectWidth;
+    pigeonMap['sourceRectHeight'] = sourceRectHeight;
+    return pigeonMap;
+  }
+
+  static StartPipMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return StartPipMessage(
+      textureId: pigeonMap['textureId']! as int,
+      sourceRectLeft: pigeonMap['sourceRectLeft'] as double?,
+      sourceRectTop: pigeonMap['sourceRectTop'] as double?,
+      sourceRectWidth: pigeonMap['sourceRectWidth'] as double?,
+      sourceRectHeight: pigeonMap['sourceRectHeight'] as double?,
+    );
+  }
+}
+
 class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
   const _AndroidVideoPlayerApiCodec();
   @override
@@ -351,34 +388,38 @@ class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else 
-    if (value is MixWithOthersMessage) {
+    if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PlaybackSpeedMessage) {
+    if (value is MixWithOthersMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else 
-    if (value is PositionMessage) {
+    if (value is PipStatusMessage) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else 
-    if (value is TextureMessage) {
+    if (value is PlaybackSpeedMessage) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else 
-    if (value is VolumeMessage) {
+    if (value is PositionMessage) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else 
-    if (value is MaxVideoResolutionMessage) {
+    if (value is StartPipMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else
-    if (value is PipStatusMessage) {
+    } else 
+    if (value is TextureMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else
+    } else 
+    if (value is VolumeMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else 
 {
       super.writeValue(buffer, value);
     }
@@ -402,27 +443,30 @@ class _AndroidVideoPlayerApiCodec extends StandardMessageCodec {
         return LoopingMessage.decode(readValue(buffer)!);
       
       case 133:       
-        return MixWithOthersMessage.decode(readValue(buffer)!);
+        return MaxVideoResolutionMessage.decode(readValue(buffer)!);
       
       case 134:       
-        return PlaybackSpeedMessage.decode(readValue(buffer)!);
+        return MixWithOthersMessage.decode(readValue(buffer)!);
       
       case 135:       
-        return PositionMessage.decode(readValue(buffer)!);
+        return PipStatusMessage.decode(readValue(buffer)!);
       
       case 136:       
-        return TextureMessage.decode(readValue(buffer)!);
+        return PlaybackSpeedMessage.decode(readValue(buffer)!);
       
       case 137:       
+        return PositionMessage.decode(readValue(buffer)!);
+      
+      case 138:       
+        return StartPipMessage.decode(readValue(buffer)!);
+      
+      case 139:       
+        return TextureMessage.decode(readValue(buffer)!);
+      
+      case 140:       
         return VolumeMessage.decode(readValue(buffer)!);
       
-      case 138:
-        return MaxVideoResolutionMessage.decode(readValue(buffer)!);
-
-      case 139:
-        return PipStatusMessage.decode(readValue(buffer)!);
-
-      default:
+      default:      
         return super.readValueOfType(type, buffer);
       
     }
@@ -789,7 +833,7 @@ class AndroidVideoPlayerApi {
     }
   }
 
-  Future<void> startPictureInPicture(TextureMessage arg_msg) async {
+  Future<void> startPictureInPicture(StartPipMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: _binaryMessenger);
     final Map<Object?, Object?>? replyMap =

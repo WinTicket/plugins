@@ -125,7 +125,18 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   }
 
   /// Starts Picture-in-Picture mode.
-  Future<void> startPictureInPicture(int textureId) {
+  ///
+  /// The optional source rect describes the screen position of the video
+  /// widget in logical pixels. On Android it is used as the origin of the
+  /// PiP enter animation (sourceRectHint) so the window animates out of the
+  /// video instead of the full screen. Ignored on other platforms.
+  Future<void> startPictureInPicture(
+    int textureId, {
+    double? sourceRectLeft,
+    double? sourceRectTop,
+    double? sourceRectWidth,
+    double? sourceRectHeight,
+  }) {
     throw UnimplementedError(
         'startPictureInPicture() has not been implemented.');
   }

@@ -192,6 +192,11 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   @visibleForTesting
   int get textureId => _textureId;
 
+  /// Callback that returns the screen rect of the video widget.
+  /// Set automatically by the [VideoPlayer] widget's state; used as the PiP
+  /// enter-animation origin on Android.
+  Rect? Function()? pipSourceRectProvider;
+
   /// Attempts to open the given [dataSource] and load metadata about the video.
   Future<void> initialize() async {
     _creatingCompleter = Completer<void>();
@@ -370,7 +375,14 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   /// Starts Picture-in-Picture mode.
   Future<void> startPictureInPicture() {
-    return _platform.startPictureInPicture(_textureId);
+    final Rect? sourceRect = pipSourceRectProvider?.call();
+    return _platform.startPictureInPicture(
+      _textureId,
+      sourceRectLeft: sourceRect?.left,
+      sourceRectTop: sourceRect?.top,
+      sourceRectWidth: sourceRect?.width,
+      sourceRectHeight: sourceRect?.height,
+    );
   }
 
   /// Stops Picture-in-Picture mode.
@@ -429,6 +441,16 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
   late int _textureId;
 
+  Rect? _getSourceRect() {
+    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return null;
+    }
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -436,20 +458,24 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
+    oldWidget.controller.pipSourceRectProvider = null;
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
+    widget.controller.pipSourceRectProvider = null;
   }
 
   @override

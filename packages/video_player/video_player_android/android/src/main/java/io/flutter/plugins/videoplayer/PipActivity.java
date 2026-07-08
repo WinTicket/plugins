@@ -5,12 +5,14 @@
 package io.flutter.plugins.videoplayer;
 
 import android.app.Activity;
-import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Rational;
 import android.view.Gravity;
 import android.view.SurfaceHolder;
@@ -40,8 +42,14 @@ public final class PipActivity extends Activity {
   static final String EXTRA_LAUNCHED_INTO_PIP = "launched_into_pip";
   private static final String TAG = "VideoPlayerPip";
 
+  // Keeps this activity alive after the expand transition starts, so the system animation
+  // (which lands the video on the source rect) finishes before the host activity is revealed.
+  private static final long EXPAND_TRANSITION_GRACE_MS = 400;
+
+  private final Handler mainHandler = new Handler(Looper.getMainLooper());
   private boolean activityStarted = false;
   private boolean enterPipRequested = false;
+  @Nullable private AspectRatioFrameLayout videoContainer;
 
   private final SurfaceHolder.Callback surfaceCallback =
       new SurfaceHolder.Callback() {
@@ -74,23 +82,27 @@ public final class PipActivity extends Activity {
       return;
     }
     PipActivityController.onActivityCreated(this);
-    setContentView(createContentView(player));
+    boolean launchedIntoPip = getIntent().getBooleanExtra(EXTRA_LAUNCHED_INTO_PIP, false);
+    setContentView(createContentView(player, launchedIntoPip));
 
-    if (getIntent().getBooleanExtra(EXTRA_LAUNCHED_INTO_PIP, false)) {
+    if (launchedIntoPip) {
       Log.d(TAG, "Launched directly into PiP (makeLaunchIntoPip)");
       enterPipRequested = true;
+      // When the activity is created directly in PiP mode there is no mode
+      // *change*, so onPictureInPictureModeChanged(true) may never fire.
+      // Report PiP entry here instead (onPipEntered is idempotent).
+      PipActivityController.onPipEntered();
     } else {
       enterPipIfNeeded("onCreate");
     }
   }
 
-  private View createContentView(@NonNull VideoPlayer player) {
+  private View createContentView(@NonNull VideoPlayer player, boolean launchedIntoPip) {
     FrameLayout root = new FrameLayout(this);
     root.setBackgroundColor(Color.BLACK);
 
     Rational aspectRatio = player.getVideoAspectRatio();
-    AspectRatioFrameLayout videoContainer =
-        new AspectRatioFrameLayout(this, aspectRatio.floatValue());
+    videoContainer = new AspectRatioFrameLayout(this, aspectRatio.floatValue());
 
     SurfaceView surfaceView = new SurfaceView(this);
     surfaceView.getHolder().addCallback(surfaceCallback);
@@ -99,13 +111,34 @@ public final class PipActivity extends Activity {
         new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-    root.addView(
-        videoContainer,
-        new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            Gravity.CENTER));
+    root.addView(videoContainer, videoLayoutParams(launchedIntoPip));
     return root;
+  }
+
+  /**
+   * Layout for the video container. While in PiP the video fills the window (whose aspect ratio
+   * already matches the video). In full-screen phases it sits exactly on the source rect — the
+   * on-screen position of the Flutter video widget — so both the enter animation (API 26-32) and
+   * the expand-to-full-screen animation land the video on the widget, making the hand-off to the
+   * host activity seamless. Without a source rect it falls back to letterboxed center.
+   */
+  private FrameLayout.LayoutParams videoLayoutParams(boolean fillWindow) {
+    Rect sourceRect = PipActivityController.getSourceRectHint();
+    if (!fillWindow && sourceRect != null) {
+      FrameLayout.LayoutParams params =
+          new FrameLayout.LayoutParams(sourceRect.width(), sourceRect.height());
+      params.leftMargin = sourceRect.left;
+      params.topMargin = sourceRect.top;
+      return params;
+    }
+    return new FrameLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+  }
+
+  private void applyVideoLayout(boolean fillWindow) {
+    if (videoContainer != null) {
+      videoContainer.setLayoutParams(videoLayoutParams(fillWindow));
+    }
   }
 
   // API 26-32 entry point. Entering from onCreate usually works; onWindowFocusChanged is the
@@ -118,9 +151,7 @@ public final class PipActivity extends Activity {
     if (player == null) {
       return;
     }
-    PictureInPictureParams params =
-        new PictureInPictureParams.Builder().setAspectRatio(player.getVideoAspectRatio()).build();
-    boolean entered = enterPictureInPictureMode(params);
+    boolean entered = enterPictureInPictureMode(PipActivityController.buildPipParams(player));
     Log.d(TAG, "enterPictureInPictureMode from " + caller + " -> " + entered);
     if (entered) {
       enterPipRequested = true;
@@ -158,21 +189,37 @@ public final class PipActivity extends Activity {
             + " started="
             + activityStarted);
     if (isInPictureInPictureMode) {
+      applyVideoLayout(true);
       PipActivityController.onPipEntered();
       return;
     }
     // When the PiP window is dismissed the activity is stopped before this callback fires,
     // whereas expanding back to full screen keeps it started.
     if (activityStarted) {
-      PipActivityController.endPip(false, "expanded to full screen");
+      // Show the video on the source rect so the system's expand animation lands it exactly on
+      // the Flutter video widget, then hand off to the host activity underneath.
+      applyVideoLayout(false);
+      Log.d(TAG, "Expanded to full screen; finishing after transition grace period");
+      mainHandler.postDelayed(
+          () -> PipActivityController.endPip(false, "expanded to full screen"),
+          EXPAND_TRANSITION_GRACE_MS);
     } else {
-      PipActivityController.endPip(true, "dismissed");
+      PipActivityController.endPipFromWindowClose();
     }
+  }
+
+  @Override
+  public void finish() {
+    super.finish();
+    // Suppress the close animation: the host activity underneath already shows the video at the
+    // same position, so any transition would break the seamless hand-off.
+    overridePendingTransition(0, 0);
   }
 
   @Override
   protected void onDestroy() {
     super.onDestroy();
+    mainHandler.removeCallbacksAndMessages(null);
     PipActivityController.onActivityDestroyed(this);
   }
 

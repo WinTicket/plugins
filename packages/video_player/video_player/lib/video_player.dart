@@ -726,7 +726,16 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposedOrNotInitialized) {
       return;
     }
-    await _videoPlayerPlatform.startPictureInPicture(_textureId);
+    // Pass the video widget position so Android animates the PiP window out
+    // of the video instead of the full screen.
+    final Rect? sourceRect = pipSourceRectProvider?.call();
+    await _videoPlayerPlatform.startPictureInPicture(
+      _textureId,
+      sourceRectLeft: sourceRect?.left,
+      sourceRectTop: sourceRect?.top,
+      sourceRectWidth: sourceRect?.width,
+      sourceRectHeight: sourceRect?.height,
+    );
   }
 
   /// Stops Picture-in-Picture mode.

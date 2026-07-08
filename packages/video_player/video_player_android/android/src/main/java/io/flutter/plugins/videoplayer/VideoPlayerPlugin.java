@@ -8,6 +8,7 @@ import static java.lang.Math.toIntExact;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.RectF;
 import android.os.Build;
 import android.util.LongSparseArray;
 import androidx.annotation.NonNull;
@@ -34,6 +35,7 @@ import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
 import io.flutter.plugins.videoplayer.Messages.PipStatusMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
 import io.flutter.plugins.videoplayer.Messages.PositionMessage;
+import io.flutter.plugins.videoplayer.Messages.StartPipMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
 import io.flutter.plugins.videoplayer.Messages.VolumeMessage;
 import io.flutter.view.TextureRegistry;
@@ -352,14 +354,32 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   }
 
   @Override
-  public void startPictureInPicture(TextureMessage arg) {
+  public void startPictureInPicture(StartPipMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     // Suspend host-activity auto PiP while the dedicated PiP activity is showing, so leaving
     // the app cannot create a second PiP window. Restored in onDedicatedPipEnded.
     for (int i = 0; i < videoPlayers.size(); i++) {
       videoPlayers.valueAt(i).suspendAutoEnter();
     }
-    player.startPictureInPicture();
+    player.startPictureInPicture(sourceRectFromMessage(arg));
+  }
+
+  /** Rect of the video widget in Flutter logical pixels, or null when not provided. */
+  @Nullable
+  private static RectF sourceRectFromMessage(StartPipMessage msg) {
+    if (msg.getSourceRectLeft() == null
+        || msg.getSourceRectTop() == null
+        || msg.getSourceRectWidth() == null
+        || msg.getSourceRectHeight() == null) {
+      return null;
+    }
+    float left = msg.getSourceRectLeft().floatValue();
+    float top = msg.getSourceRectTop().floatValue();
+    return new RectF(
+        left,
+        top,
+        left + msg.getSourceRectWidth().floatValue(),
+        top + msg.getSourceRectHeight().floatValue());
   }
 
   @Override

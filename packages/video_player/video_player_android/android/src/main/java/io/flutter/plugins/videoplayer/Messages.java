@@ -686,6 +686,7 @@ public class Messages {
       return pigeonResult;
     }
   }
+
   /** Generated class from Pigeon that represents data sent in messages. */
   public static class PipStatusMessage {
     private @NonNull Long textureId;
@@ -741,6 +742,104 @@ public class Messages {
       return pigeonResult;
     }
   }
+
+  /** Generated class from Pigeon that represents data sent in messages. */
+  public static class StartPipMessage {
+    private @NonNull Long textureId;
+    public @NonNull Long getTextureId() { return textureId; }
+    public void setTextureId(@NonNull Long setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"textureId\" is null.");
+      }
+      this.textureId = setterArg;
+    }
+
+    private @Nullable Double sourceRectLeft;
+    public @Nullable Double getSourceRectLeft() { return sourceRectLeft; }
+    public void setSourceRectLeft(@Nullable Double setterArg) {
+      this.sourceRectLeft = setterArg;
+    }
+
+    private @Nullable Double sourceRectTop;
+    public @Nullable Double getSourceRectTop() { return sourceRectTop; }
+    public void setSourceRectTop(@Nullable Double setterArg) {
+      this.sourceRectTop = setterArg;
+    }
+
+    private @Nullable Double sourceRectWidth;
+    public @Nullable Double getSourceRectWidth() { return sourceRectWidth; }
+    public void setSourceRectWidth(@Nullable Double setterArg) {
+      this.sourceRectWidth = setterArg;
+    }
+
+    private @Nullable Double sourceRectHeight;
+    public @Nullable Double getSourceRectHeight() { return sourceRectHeight; }
+    public void setSourceRectHeight(@Nullable Double setterArg) {
+      this.sourceRectHeight = setterArg;
+    }
+
+    /** Constructor is private to enforce null safety; use Builder. */
+    private StartPipMessage() {}
+    public static final class Builder {
+      private @Nullable Long textureId;
+      public @NonNull Builder setTextureId(@NonNull Long setterArg) {
+        this.textureId = setterArg;
+        return this;
+      }
+      private @Nullable Double sourceRectLeft;
+      public @NonNull Builder setSourceRectLeft(@Nullable Double setterArg) {
+        this.sourceRectLeft = setterArg;
+        return this;
+      }
+      private @Nullable Double sourceRectTop;
+      public @NonNull Builder setSourceRectTop(@Nullable Double setterArg) {
+        this.sourceRectTop = setterArg;
+        return this;
+      }
+      private @Nullable Double sourceRectWidth;
+      public @NonNull Builder setSourceRectWidth(@Nullable Double setterArg) {
+        this.sourceRectWidth = setterArg;
+        return this;
+      }
+      private @Nullable Double sourceRectHeight;
+      public @NonNull Builder setSourceRectHeight(@Nullable Double setterArg) {
+        this.sourceRectHeight = setterArg;
+        return this;
+      }
+      public @NonNull StartPipMessage build() {
+        StartPipMessage pigeonReturn = new StartPipMessage();
+        pigeonReturn.setTextureId(textureId);
+        pigeonReturn.setSourceRectLeft(sourceRectLeft);
+        pigeonReturn.setSourceRectTop(sourceRectTop);
+        pigeonReturn.setSourceRectWidth(sourceRectWidth);
+        pigeonReturn.setSourceRectHeight(sourceRectHeight);
+        return pigeonReturn;
+      }
+    }
+    @NonNull Map<String, Object> toMap() {
+      Map<String, Object> toMapResult = new HashMap<>();
+      toMapResult.put("textureId", textureId);
+      toMapResult.put("sourceRectLeft", sourceRectLeft);
+      toMapResult.put("sourceRectTop", sourceRectTop);
+      toMapResult.put("sourceRectWidth", sourceRectWidth);
+      toMapResult.put("sourceRectHeight", sourceRectHeight);
+      return toMapResult;
+    }
+    static @NonNull StartPipMessage fromMap(@NonNull Map<String, Object> map) {
+      StartPipMessage pigeonResult = new StartPipMessage();
+      Object textureId = map.get("textureId");
+      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer)textureId : (Long)textureId));
+      Object sourceRectLeft = map.get("sourceRectLeft");
+      pigeonResult.setSourceRectLeft((Double)sourceRectLeft);
+      Object sourceRectTop = map.get("sourceRectTop");
+      pigeonResult.setSourceRectTop((Double)sourceRectTop);
+      Object sourceRectWidth = map.get("sourceRectWidth");
+      pigeonResult.setSourceRectWidth((Double)sourceRectWidth);
+      Object sourceRectHeight = map.get("sourceRectHeight");
+      pigeonResult.setSourceRectHeight((Double)sourceRectHeight);
+      return pigeonResult;
+    }
+  }
   private static class AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     public static final AndroidVideoPlayerApiCodec INSTANCE = new AndroidVideoPlayerApiCodec();
     private AndroidVideoPlayerApiCodec() {}
@@ -752,40 +851,43 @@ public class Messages {
         
         case (byte)129:         
           return CreateMessage.fromMap((Map<String, Object>) readValue(buffer));
-
+        
         case (byte)130:         
           return DurationMessage.fromMap((Map<String, Object>) readValue(buffer));
-
+        
         case (byte)131:         
           return IsPlayingMessage.fromMap((Map<String, Object>) readValue(buffer));
-
+        
         case (byte)132:         
           return LoopingMessage.fromMap((Map<String, Object>) readValue(buffer));
-
+        
         case (byte)133:         
-          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return MaxVideoResolutionMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)134:         
-          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return MixWithOthersMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)135:         
-          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PipStatusMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)136:         
-          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+          return PlaybackSpeedMessage.fromMap((Map<String, Object>) readValue(buffer));
         
         case (byte)137:         
+          return PositionMessage.fromMap((Map<String, Object>) readValue(buffer));
+        
+        case (byte)138:         
+          return StartPipMessage.fromMap((Map<String, Object>) readValue(buffer));
+        
+        case (byte)139:         
+          return TextureMessage.fromMap((Map<String, Object>) readValue(buffer));
+        
+        case (byte)140:         
           return VolumeMessage.fromMap((Map<String, Object>) readValue(buffer));
-
-        case (byte)138:
-          return MaxVideoResolutionMessage.fromMap((Map<String, Object>) readValue(buffer));
-
-        case (byte)139:
-          return PipStatusMessage.fromMap((Map<String, Object>) readValue(buffer));
-
-        default:
+        
+        default:        
           return super.readValueOfType(type, buffer);
-
+        
       }
     }
     @Override
@@ -810,34 +912,38 @@ public class Messages {
         stream.write(132);
         writeValue(stream, ((LoopingMessage) value).toMap());
       } else 
-      if (value instanceof MixWithOthersMessage) {
+      if (value instanceof MaxVideoResolutionMessage) {
         stream.write(133);
+        writeValue(stream, ((MaxVideoResolutionMessage) value).toMap());
+      } else 
+      if (value instanceof MixWithOthersMessage) {
+        stream.write(134);
         writeValue(stream, ((MixWithOthersMessage) value).toMap());
       } else 
+      if (value instanceof PipStatusMessage) {
+        stream.write(135);
+        writeValue(stream, ((PipStatusMessage) value).toMap());
+      } else 
       if (value instanceof PlaybackSpeedMessage) {
-        stream.write(134);
+        stream.write(136);
         writeValue(stream, ((PlaybackSpeedMessage) value).toMap());
       } else 
       if (value instanceof PositionMessage) {
-        stream.write(135);
+        stream.write(137);
         writeValue(stream, ((PositionMessage) value).toMap());
       } else 
+      if (value instanceof StartPipMessage) {
+        stream.write(138);
+        writeValue(stream, ((StartPipMessage) value).toMap());
+      } else 
       if (value instanceof TextureMessage) {
-        stream.write(136);
+        stream.write(139);
         writeValue(stream, ((TextureMessage) value).toMap());
       } else 
       if (value instanceof VolumeMessage) {
-        stream.write(137);
+        stream.write(140);
         writeValue(stream, ((VolumeMessage) value).toMap());
       } else 
-      if (value instanceof MaxVideoResolutionMessage) {
-        stream.write(138);
-        writeValue(stream, ((MaxVideoResolutionMessage) value).toMap());
-      } else
-      if (value instanceof PipStatusMessage) {
-        stream.write(139);
-        writeValue(stream, ((PipStatusMessage) value).toMap());
-      } else
 {
         super.writeValue(stream, value);
       }
@@ -861,7 +967,7 @@ public class Messages {
     void setBuffer(@NonNull BufferMessage msg);
     void setMaxVideoResolution(@NonNull MaxVideoResolutionMessage msg);
     @NonNull IsPlayingMessage isPlaying(@NonNull TextureMessage msg);
-    void startPictureInPicture(@NonNull TextureMessage msg);
+    void startPictureInPicture(@NonNull StartPipMessage msg);
     void stopPictureInPicture(@NonNull TextureMessage msg);
     @NonNull PipStatusMessage isPictureInPictureSupported(@NonNull TextureMessage msg);
     @NonNull PipStatusMessage isPictureInPictureActive(@NonNull TextureMessage msg);
@@ -1237,7 +1343,7 @@ public class Messages {
             Map<String, Object> wrapped = new HashMap<>();
             try {
               ArrayList<Object> args = (ArrayList<Object>)message;
-              TextureMessage msgArg = (TextureMessage)args.get(0);
+              StartPipMessage msgArg = (StartPipMessage)args.get(0);
               if (msgArg == null) {
                 throw new NullPointerException("msgArg unexpectedly null.");
               }

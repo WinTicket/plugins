@@ -88,6 +88,20 @@ class PipStatusMessage {
   bool value;
 }
 
+class StartPipMessage {
+  StartPipMessage(this.textureId, this.sourceRectLeft, this.sourceRectTop,
+      this.sourceRectWidth, this.sourceRectHeight);
+  int textureId;
+
+  /// Screen rect of the video widget in logical pixels, used as the origin of
+  /// the PiP enter animation (sourceRectHint). All null when unknown, in which
+  /// case the system animates from the full screen.
+  double? sourceRectLeft;
+  double? sourceRectTop;
+  double? sourceRectWidth;
+  double? sourceRectHeight;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -105,7 +119,7 @@ abstract class AndroidVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void startPictureInPicture(TextureMessage msg);
+  void startPictureInPicture(StartPipMessage msg);
   void stopPictureInPicture(TextureMessage msg);
   PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
   PipStatusMessage isPictureInPictureActive(TextureMessage msg);

@@ -214,8 +214,20 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> startPictureInPicture(int textureId) {
-    return _api.startPictureInPicture(TextureMessage(textureId: textureId));
+  Future<void> startPictureInPicture(
+    int textureId, {
+    double? sourceRectLeft,
+    double? sourceRectTop,
+    double? sourceRectWidth,
+    double? sourceRectHeight,
+  }) {
+    return _api.startPictureInPicture(StartPipMessage(
+      textureId: textureId,
+      sourceRectLeft: sourceRectLeft,
+      sourceRectTop: sourceRectTop,
+      sourceRectWidth: sourceRectWidth,
+      sourceRectHeight: sourceRectHeight,
+    ));
   }
 
   @override

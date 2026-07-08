@@ -8,9 +8,13 @@ import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.PictureInPictureParams;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import io.flutter.Log;
 import java.lang.ref.WeakReference;
 
@@ -29,10 +33,17 @@ final class PipActivityController {
 
   private static final String TAG = "VideoPlayerPip";
 
+  // How long after the PiP window closes to wait before deciding whether the close was an
+  // "expand back to the app" (host regains focus -> keep playing) or a plain dismissal.
+  private static final long WINDOW_CLOSE_PAUSE_DECISION_MS = 500;
+
   @Nullable private static VideoPlayer player;
   @Nullable private static WeakReference<PipActivity> activityRef;
+  @Nullable private static WeakReference<Activity> hostActivityRef;
   private static boolean inPipMode = false;
   @Nullable private static OnPipEndedListener onPipEndedListener;
+  // Screen rect (physical pixels) of the video widget, used as the PiP enter-animation origin.
+  @Nullable private static Rect sourceRectHint;
 
   private PipActivityController() {}
 
@@ -40,30 +51,66 @@ final class PipActivityController {
     onPipEndedListener = listener;
   }
 
-  /** Launches the dedicated PiP activity showing the given player's video. */
-  static void launch(@NonNull Activity hostActivity, @NonNull VideoPlayer targetPlayer) {
+  /**
+   * Launches the dedicated PiP activity showing the given player's video. When non-null,
+   * {@code sourceRectHintPx} makes the system animate the PiP window out of that on-screen rect
+   * instead of the full screen.
+   */
+  @RequiresApi(Build.VERSION_CODES.O)
+  static void launch(
+      @NonNull Activity hostActivity,
+      @NonNull VideoPlayer targetPlayer,
+      @Nullable Rect sourceRectHintPx) {
     if (player != null && player != targetPlayer) {
       endPip(false, "replaced by another player");
     }
     player = targetPlayer;
+    hostActivityRef = new WeakReference<>(hostActivity);
+    sourceRectHint = sourceRectHintPx;
+    // Give the host activity the same source rect hint, so the system's "expand back to the
+    // app" transition also aims at the video widget position.
+    hostActivity.setPictureInPictureParams(buildPipParams(targetPlayer));
     Intent intent = new Intent(hostActivity, PipActivity.class);
+    // Launching the PiP activity must not look like the user leaving the host activity,
+    // otherwise the host's onUserLeaveHint would fire and could re-trigger auto PiP.
+    intent.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      PictureInPictureParams params =
-          new PictureInPictureParams.Builder()
-              .setAspectRatio(targetPlayer.getVideoAspectRatio())
-              .build();
       intent.putExtra(PipActivity.EXTRA_LAUNCHED_INTO_PIP, true);
-      Log.d(TAG, "Launching PipActivity via makeLaunchIntoPip (API 33+)");
-      hostActivity.startActivity(intent, ActivityOptions.makeLaunchIntoPip(params).toBundle());
+      Log.d(
+          TAG,
+          "Launching PipActivity via makeLaunchIntoPip (API 33+), sourceRectHint="
+              + sourceRectHintPx);
+      hostActivity.startActivity(
+          intent, ActivityOptions.makeLaunchIntoPip(buildPipParams(targetPlayer)).toBundle());
     } else {
       Log.d(TAG, "Launching PipActivity; entering PiP after creation (API < 33)");
       hostActivity.startActivity(intent);
     }
   }
 
+  /**
+   * Builds the PiP params for the given player: the video aspect ratio plus, when set, the source
+   * rect the enter animation should start from.
+   */
+  @RequiresApi(Build.VERSION_CODES.O)
+  static PictureInPictureParams buildPipParams(@NonNull VideoPlayer targetPlayer) {
+    PictureInPictureParams.Builder builder =
+        new PictureInPictureParams.Builder().setAspectRatio(targetPlayer.getVideoAspectRatio());
+    if (sourceRectHint != null) {
+      builder.setSourceRectHint(sourceRectHint);
+    }
+    return builder.build();
+  }
+
   @Nullable
   static VideoPlayer getPlayer() {
     return player;
+  }
+
+  /** Screen rect of the video widget, used to lay out and animate PiP transitions. */
+  @Nullable
+  static Rect getSourceRectHint() {
+    return sourceRectHint;
   }
 
   static boolean isInPipMode() {
@@ -75,7 +122,9 @@ final class PipActivityController {
   }
 
   static void onPipEntered() {
-    if (player == null) {
+    // Idempotent: with makeLaunchIntoPip this is called from onCreate, and
+    // onPictureInPictureModeChanged(true) may or may not fire afterwards.
+    if (player == null || inPipMode) {
       return;
     }
     inPipMode = true;
@@ -93,6 +142,32 @@ final class PipActivityController {
   }
 
   /**
+   * Ends the session after the system closed the PiP window. On API 33+ this happens both when
+   * the user dismisses the window (X) and when they expand it back to the app — the dedicated
+   * activity is stopped in both cases, so they are indistinguishable here. Decide whether to
+   * pause after a grace period: if the host activity regained focus the close was an
+   * expand-back-to-app, so playback continues; otherwise it was a plain dismissal, so pause.
+   */
+  static void endPipFromWindowClose() {
+    VideoPlayer endedPlayer = player;
+    Activity hostActivity = hostActivityRef != null ? hostActivityRef.get() : null;
+    endPip(false, "window closed");
+    if (endedPlayer == null) {
+      return;
+    }
+    new Handler(Looper.getMainLooper())
+        .postDelayed(
+            () -> {
+              boolean hostFocused = hostActivity != null && hostActivity.hasWindowFocus();
+              Log.d(TAG, "PiP window closed; hostFocused=" + hostFocused);
+              if (!hostFocused && !endedPlayer.isDisposed()) {
+                endedPlayer.pause();
+              }
+            },
+            WINDOW_CLOSE_PAUSE_DECISION_MS);
+  }
+
+  /**
    * Ends the dedicated PiP session: restores video output to the Flutter texture, optionally
    * pauses playback, notifies Dart, and finishes the PiP activity. Safe to call multiple times.
    */
@@ -105,6 +180,7 @@ final class PipActivityController {
     boolean wasInPipMode = inPipMode;
     inPipMode = false;
     player = null;
+    sourceRectHint = null;
     if (endedPlayer != null) {
       endedPlayer.restoreFlutterSurface();
       if (pauseVideo) {
@@ -128,6 +204,7 @@ final class PipActivityController {
     Log.d(TAG, "Player disposed while its dedicated PiP session was active");
     inPipMode = false;
     player = null;
+    sourceRectHint = null;
     finishActivityAndNotify(disposedPlayer);
   }
 

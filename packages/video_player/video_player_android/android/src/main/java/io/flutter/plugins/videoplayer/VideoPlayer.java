@@ -12,6 +12,8 @@ import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Rational;
@@ -87,6 +89,7 @@ final class VideoPlayer {
   @Nullable private Activity activity;
   @Nullable private PipRequestHandler pipRequestHandler;
   private boolean autoPipEnabled = false;
+  private boolean disposed = false;
 
   VideoPlayer(
       Context context,
@@ -353,7 +356,7 @@ final class VideoPlayer {
     this.pipRequestHandler = handler;
   }
 
-  void startPictureInPicture() {
+  void startPictureInPicture(@Nullable RectF sourceRectLogical) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
       throw new UnsupportedOperationException(
           "Picture-in-Picture requires API level 26 (Android 8.0) or higher.");
@@ -369,7 +372,21 @@ final class VideoPlayer {
 
     // Manual PiP runs in a dedicated activity so the main app stays usable behind the PiP
     // window and the window shows nothing but the video.
-    PipActivityController.launch(activity, this);
+    PipActivityController.launch(activity, this, logicalToPixelRect(sourceRectLogical));
+  }
+
+  /** Converts a rect in Flutter logical pixels to physical pixels. */
+  @Nullable
+  private Rect logicalToPixelRect(@Nullable RectF logical) {
+    if (logical == null || activity == null) {
+      return null;
+    }
+    float density = activity.getResources().getDisplayMetrics().density;
+    return new Rect(
+        Math.round(logical.left * density),
+        Math.round(logical.top * density),
+        Math.round(logical.right * density),
+        Math.round(logical.bottom * density));
   }
 
   /** Redirects video output to the dedicated PiP activity's surface. */
@@ -461,12 +478,7 @@ final class VideoPlayer {
       pipRequestHandler.onPipRequested();
     }
 
-    PictureInPictureParams params =
-        new PictureInPictureParams.Builder()
-            .setAspectRatio(getVideoAspectRatio())
-            .setAutoEnterEnabled(enabled)
-            .build();
-    activity.setPictureInPictureParams(params);
+    applyAutoPipParams(enabled);
 
     sendAutoPipChangedEvent(enabled);
   }
@@ -481,7 +493,9 @@ final class VideoPlayer {
    * autoPipEnabled flag is kept so {@link #updateAutoPipParams()} can restore the params later.
    */
   void suspendAutoEnter() {
-    applyAutoPipParams(false);
+    if (autoPipEnabled) {
+      applyAutoPipParams(false);
+    }
   }
 
   /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
@@ -541,12 +555,14 @@ final class VideoPlayer {
 
   /** Re-applies auto PiP params with the current video aspect ratio if enabled. */
   void updateAutoPipParams() {
-    applyAutoPipParams(true);
+    if (autoPipEnabled) {
+      applyAutoPipParams(true);
+    }
   }
 
-  /** Sets host-activity PiP params with the given autoEnter flag, if auto PiP is enabled. */
+  /** Sets host-activity PiP params with the given autoEnter flag. */
   private void applyAutoPipParams(boolean autoEnterEnabled) {
-    if (!autoPipEnabled || activity == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+    if (activity == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
       return;
     }
     activity.setPictureInPictureParams(
@@ -556,7 +572,12 @@ final class VideoPlayer {
             .build());
   }
 
+  boolean isDisposed() {
+    return disposed;
+  }
+
   void dispose() {
+    disposed = true;
     // End any dedicated PiP session before releasing the player it renders from.
     PipActivityController.onPlayerDisposed(this);
     activity = null;
