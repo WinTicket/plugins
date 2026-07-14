@@ -49,9 +49,10 @@ class _AppState extends State<_App> {
   }
 
   Future<ClosedCaptionFile> _loadCaptions() async {
-    // Note: this won't work until the widget is built and has a context,
-    // but it demonstrates the API.
-    return WebVTTCaptionFile('');
+    final String fileContents = await DefaultAssetBundle.of(context)
+        .loadString('assets/bumble_bee_captions.vtt');
+    return WebVTTCaptionFile(
+        fileContents); // For vtt files, use WebVTTCaptionFile
   }
 
   void _onStateChanged() {

@@ -114,7 +114,6 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
   @override
   void initState() {
     super.initState();
-    debugPrint('[PiP] _BumbleBeeRemoteVideo initState');
     _controller = MiniController.network(
       'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
     );
@@ -127,7 +126,6 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
 
   Future<void> _initPictureInPicture() async {
     final bool supported = await _controller.isPictureInPictureSupported();
-    debugPrint('[PiP] isPictureInPictureSupported: $supported');
     if (mounted) {
       setState(() {
         _isPipSupported = supported;
@@ -137,7 +135,6 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
 
   Future<void> _togglePictureInPicture() async {
     final bool isActive = await _controller.isPictureInPictureActive();
-    debugPrint('[PiP] togglePictureInPicture: isActive=$isActive');
     if (isActive) {
       await _controller.stopPictureInPicture();
     } else {

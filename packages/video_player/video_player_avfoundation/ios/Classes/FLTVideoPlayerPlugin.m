@@ -55,6 +55,9 @@
 @property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
 @end
 
+/// Tag used to identify the black overlay view added during PiP restore.
+static const NSInteger kPipRestoreOverlayTag = 20250101;
+
 static void *timeRangeContext = &timeRangeContext;
 static void *statusContext = &statusContext;
 static void *presentationSizeContext = &presentationSizeContext;
@@ -439,7 +442,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
           }
         }
         if (keyWindow) break;
-      } 
+      }
       if (keyWindow) {
         [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
       }
@@ -607,7 +610,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   }
   if (keyWindow) {
-    UIView *overlay = [keyWindow.rootViewController.view viewWithTag:9999];
+    UIView *overlay = [keyWindow.rootViewController.view viewWithTag:kPipRestoreOverlayTag];
     if (overlay) {
       [UIView animateWithDuration:0.3 animations:^{
         overlay.alpha = 0;
@@ -652,7 +655,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   if (keyWindow) {
     UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
     overlay.backgroundColor = [UIColor blackColor];
-    overlay.tag = 9999;
+    overlay.tag = kPipRestoreOverlayTag;
     [keyWindow.rootViewController.view addSubview:overlay];
   }
 
@@ -703,7 +706,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
-  NSLog(@"[PiP] failedToStartPictureInPictureWithError: %@", error.localizedDescription);
+  if (_eventSink) {
+    _eventSink([FlutterError errorWithCode:@"PipError"
+                                   message:[NSString stringWithFormat:@"Failed to start Picture-in-Picture: %@",
+                                                                       error.localizedDescription]
+                                   details:nil]);
+  }
 }
 
 - (int64_t)duration {

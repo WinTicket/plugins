@@ -411,7 +411,6 @@ final class VideoPlayer {
       return;
     }
     if (activity == null) {
-      android.util.Log.w("AutoPiP", "activity is null, cannot set auto PiP");
       sendAutoPipChangedEvent(false);
       return;
     }

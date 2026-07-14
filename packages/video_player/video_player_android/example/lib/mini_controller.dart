@@ -394,10 +394,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     return _platform.setAutoPictureInPicture(_textureId, enabled);
   }
 
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
-  }
 }
 
 /// Widget that displays the video controlled by [controller].

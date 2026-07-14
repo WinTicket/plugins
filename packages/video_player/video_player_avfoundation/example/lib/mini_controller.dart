@@ -412,10 +412,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     }
   }
 
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
-  }
 }
 
 /// Widget that displays the video controlled by [controller].

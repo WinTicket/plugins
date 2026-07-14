@@ -170,7 +170,6 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  @override
   Future<void> setMaxVideoResolution(int textureId, int? width, int? height) {
     final int sanitizedWidth = width != null && width > 0 ? width : 0;
     final int sanitizedHeight = height != null && height > 0 ? height : 0;
