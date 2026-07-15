@@ -182,6 +182,12 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Returns whether auto Picture-in-Picture is currently enabled.
   bool get isAutoPipEnabled => _isAutoPipEnabled;
 
+  /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
+  ///
+  /// [isActive] が true の場合は PiP に入ったこと、false の場合は
+  /// PiP から出たことを示す。
+  void Function(bool isActive)? onPipActiveChanged;
+
   /// The id of a texture that hasn't been initialized.
   @visibleForTesting
   static const int kUninitializedTextureId = -1;
@@ -258,10 +264,12 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.pipStarted:
           _isPipActive = true;
           notifyListeners();
+          onPipActiveChanged?.call(true);
           break;
         case VideoEventType.pipStopped:
           _isPipActive = false;
           notifyListeners();
+          onPipActiveChanged?.call(false);
           break;
         case VideoEventType.pipRestoreUserInterface:
           break;

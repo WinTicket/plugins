@@ -437,9 +437,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.pipStarted:
           value = value.copyWith(isPipActive: true);
+          onPipActiveChanged?.call(true);
           break;
         case VideoEventType.pipStopped:
           value = value.copyWith(isPipActive: false);
+          onPipActiveChanged?.call(false);
           break;
         case VideoEventType.pipRestoreUserInterface:
           _completePipRestore();
@@ -778,6 +780,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Set automatically by [_VideoPlayerState].
   Rect? Function()? pipSourceRectProvider;
 
+  /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
+  ///
+  /// [isActive] が true の場合は PiP に入ったこと、false の場合は
+  /// PiP から出たことを示す。
+  /// [VideoPlayerValue.isPipActive] と同じ値がパラメータで渡される。
+  void Function(bool isActive)? onPipActiveChanged;
 
   void _completePipRestore() {
     final rect = pipSourceRectProvider?.call();
