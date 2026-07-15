@@ -24,6 +24,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
 import io.flutter.plugins.videoplayer.Messages.BufferMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
@@ -51,6 +52,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   // Tracks which player last requested PiP, so events go to the right player.
   private long lastPipPlayerId = -1;
   @Nullable private Consumer<PictureInPictureModeChangedInfo> pipModeChangedListener;
+  // ホスト Activity 離脱直前 (onUserLeaveHint) に auto PiP を発火するリスナ。
+  // Flutter の ActivityPluginBinding が用意する dispatcher で発火するため、
+  // FlutterFragmentActivity が super.onUserLeaveHint を呼ばない構造でも動作する。
+  @Nullable private PluginRegistry.UserLeaveHintListener userLeaveHintListener;
+  // register/unregister を対称にするため binding 参照を保持する。
+  @Nullable private ActivityPluginBinding activityBinding;
 
   /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
   public VideoPlayerPlugin() {}
@@ -82,11 +89,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
 
   // Called when the dedicated PiP activity session ends, however it ended.
   private void onDedicatedPipEnded(@Nullable VideoPlayer endedPlayer) {
-    // Restore host-activity autoEnter params suspended while the dedicated PiP was showing.
-    for (int i = 0; i < videoPlayers.size(); i++) {
-      videoPlayers.valueAt(i).updateAutoPipParams();
-    }
-    // Mirror the host-activity listener: keep lastPipPlayerId only while auto PiP is enabled.
+    // auto PiP が有効な間は lastPipPlayerId を保持し、次回発火時に同じ player を対象にする。
     if (endedPlayer == null || endedPlayer.isAutoPipEnabled()) {
       return;
     }
@@ -100,12 +103,18 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   @Override
   public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
     activity = binding.getActivity();
+    Log.i(
+        TAG,
+        "onAttachedToActivity: activity="
+            + (activity != null ? activity.getClass().getName() : "null"));
     setActivityOnAllPlayers(activity);
     registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
   }
 
   @Override
   public void onDetachedFromActivityForConfigChanges() {
+    unregisterUserLeaveHintListener();
     activity = null;
     setActivityOnAllPlayers(null);
   }
@@ -115,10 +124,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
     activity = binding.getActivity();
     setActivityOnAllPlayers(activity);
     registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
   }
 
   @Override
   public void onDetachedFromActivity() {
+    unregisterUserLeaveHintListener();
     activity = null;
     setActivityOnAllPlayers(null);
     pipModeChangedListener = null;
@@ -169,6 +180,51 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
           };
       provider.addOnPictureInPictureModeChangedListener(pipModeChangedListener);
     }
+  }
+
+  // ホスト Activity 離脱直前 (Home / Recents 押下時) に auto PiP を発火させる。
+  // FlutterFragmentActivity は super.onUserLeaveHint を呼ばない (@SuppressWarnings("MissingSuperCall"))
+  // ため androidx.core の OnUserLeaveHintProvider では受信できない。Flutter が独自に用意する
+  // ActivityPluginBinding.addOnUserLeaveHintListener を使うことで確実に受信できる。
+  private void registerUserLeaveHintListener(@NonNull ActivityPluginBinding binding) {
+    // Config change 経由の二重登録を防ぐ。
+    if (activityBinding != null && userLeaveHintListener != null) {
+      activityBinding.removeOnUserLeaveHintListener(userLeaveHintListener);
+    }
+
+    userLeaveHintListener =
+        () -> {
+          Log.i(TAG, "onUserLeaveHint fired; playersCount=" + videoPlayers.size());
+          // 対象は auto PiP が有効かつ再生中、かつまだ PiP に入っていない player。
+          for (int i = 0; i < videoPlayers.size(); i++) {
+            VideoPlayer player = videoPlayers.valueAt(i);
+            Log.i(
+                TAG,
+                "onUserLeaveHint check[" + i + "]: autoPip=" + player.isAutoPipEnabled()
+                    + ", playing=" + player.getIsPlaying()
+                    + ", pipActive=" + player.isPictureInPictureActive());
+            if (player.isAutoPipEnabled()
+                && player.getIsPlaying()
+                && !player.isPictureInPictureActive()) {
+              Log.i(TAG, "onUserLeaveHint: launching PipActivity for auto PiP");
+              // onUserLeaveHint は onPause 直前に呼ばれ Activity はまだ visible。
+              // ここから同期的に startActivity することで Background Activity Start 制限を回避する。
+              player.startPictureInPicture(null);
+              return;
+            }
+          }
+        };
+    binding.addOnUserLeaveHintListener(userLeaveHintListener);
+    activityBinding = binding;
+    Log.i(TAG, "OnUserLeaveHint listener registered via ActivityPluginBinding");
+  }
+
+  private void unregisterUserLeaveHintListener() {
+    if (userLeaveHintListener != null && activityBinding != null) {
+      activityBinding.removeOnUserLeaveHintListener(userLeaveHintListener);
+    }
+    userLeaveHintListener = null;
+    activityBinding = null;
   }
 
   private void disposeAllPlayers() {
@@ -356,11 +412,6 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   @Override
   public void startPictureInPicture(StartPipMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    // Suspend host-activity auto PiP while the dedicated PiP activity is showing, so leaving
-    // the app cannot create a second PiP window. Restored in onDedicatedPipEnded.
-    for (int i = 0; i < videoPlayers.size(); i++) {
-      videoPlayers.valueAt(i).suspendAutoEnter();
-    }
     player.startPictureInPicture(sourceRectFromMessage(arg));
   }
 

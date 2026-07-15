@@ -67,12 +67,9 @@ final class PipActivityController {
     player = targetPlayer;
     hostActivityRef = new WeakReference<>(hostActivity);
     sourceRectHint = sourceRectHintPx;
-    // Give the host activity the same source rect hint, so the system's "expand back to the
-    // app" transition also aims at the video widget position.
-    hostActivity.setPictureInPictureParams(buildPipParams(targetPlayer));
     Intent intent = new Intent(hostActivity, PipActivity.class);
-    // Launching the PiP activity must not look like the user leaving the host activity,
-    // otherwise the host's onUserLeaveHint would fire and could re-trigger auto PiP.
+    // PipActivity 起動時にホストの onUserLeaveHint を誤発火させないためのフラグ。
+    // ここで発火してしまうと、auto PiP リスナが「新規の離脱」と判定して二重起動しうる。
     intent.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       intent.putExtra(PipActivity.EXTRA_LAUNCHED_INTO_PIP, true);

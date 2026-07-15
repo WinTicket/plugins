@@ -8,7 +8,6 @@ import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
 import android.app.Activity;
-import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -462,40 +461,18 @@ final class VideoPlayer {
   void setAutoPictureInPicture(boolean enabled) {
     this.autoPipEnabled = enabled;
 
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-      // API 31 未満では setAutoEnterEnabled が使えない。
-      // Flutter 側のフォールバックに委ねるため、要求された enabled 値をそのまま通知。
-      sendAutoPipChangedEvent(enabled);
-      return;
-    }
-    if (activity == null) {
-      android.util.Log.w("AutoPiP", "activity is null, cannot set auto PiP");
-      sendAutoPipChangedEvent(false);
-      return;
-    }
-
-    if (pipRequestHandler != null && enabled) {
+    // ホスト Activity 側の PiP 化 (setAutoEnterEnabled) は使わない。
+    // 実際の PiP 発火は VideoPlayerPlugin が onUserLeaveHint を検知して行うため、
+    // ここではフラグを保持し Dart 側に状態を通知するだけで良い。
+    if (enabled && pipRequestHandler != null) {
       pipRequestHandler.onPipRequested();
     }
-
-    applyAutoPipParams(enabled);
 
     sendAutoPipChangedEvent(enabled);
   }
 
   boolean isAutoPipEnabled() {
     return autoPipEnabled;
-  }
-
-  /**
-   * Temporarily clears autoEnterEnabled on the host activity while the dedicated PiP activity is
-   * showing, so leaving the app cannot pull the host activity into a second PiP window. The
-   * autoPipEnabled flag is kept so {@link #updateAutoPipParams()} can restore the params later.
-   */
-  void suspendAutoEnter() {
-    if (autoPipEnabled) {
-      applyAutoPipParams(false);
-    }
   }
 
   /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
@@ -545,31 +522,7 @@ final class VideoPlayer {
       }
 
       eventSink.success(event);
-
-      // Update PiP params with the actual video aspect ratio now that the
-      // video format is known. When setAutoPictureInPicture was called before
-      // initialization, getVideoAspectRatio() returned the 16:9 default.
-      updateAutoPipParams();
     }
-  }
-
-  /** Re-applies auto PiP params with the current video aspect ratio if enabled. */
-  void updateAutoPipParams() {
-    if (autoPipEnabled) {
-      applyAutoPipParams(true);
-    }
-  }
-
-  /** Sets host-activity PiP params with the given autoEnter flag. */
-  private void applyAutoPipParams(boolean autoEnterEnabled) {
-    if (activity == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-      return;
-    }
-    activity.setPictureInPictureParams(
-        new PictureInPictureParams.Builder()
-            .setAspectRatio(getVideoAspectRatio())
-            .setAutoEnterEnabled(autoEnterEnabled)
-            .build());
   }
 
   boolean isDisposed() {

@@ -9,7 +9,6 @@
       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|locale|layoutDirection"
       android:hardwareAccelerated="true"
       android:name="io.flutter.embedding.android.FlutterFragmentActivity"
-      android:supportsPictureInPicture="true"
       android:theme="@style/LaunchTheme"
       android:windowSoftInputMode="adjustResize">
       <intent-filter>

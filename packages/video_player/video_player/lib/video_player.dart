@@ -720,8 +720,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Starts Picture-in-Picture mode.
   ///
   /// Supported on iOS (14.2+) and Android (8.0+).
-  /// On Android, the Activity must declare `android:supportsPictureInPicture="true"`
-  /// in the AndroidManifest.xml.
+  /// On Android, PiP は プラグイン内蔵の `PipActivity` で動作する。ホスト Activity への
+  /// `android:supportsPictureInPicture="true"` 追加は不要 (auto PiP も同 Activity 経由)。
   Future<void> startPictureInPicture() async {
     if (_isDisposedOrNotInitialized) {
       return;
@@ -771,8 +771,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Enables or disables automatic Picture-in-Picture.
   ///
   /// When enabled:
-  /// - Android 12+ (API 31+): Uses native setAutoEnterEnabled
-  /// - Android 8-11 (API 26-30): Flutter-side fallback via AppLifecycleState
+  /// - Android (8.0+): ホスト Activity の `onUserLeaveHint` を検知して PipActivity を起動する。
+  ///   ホスト Activity は `FlutterFragmentActivity` (もしくは `ComponentActivity`
+  ///   のサブクラス) である必要がある。プレーンな `FlutterActivity` では動作しない。
   /// - iOS 14.2+: Uses canStartPictureInPictureAutomaticallyFromInline
   ///
   /// On unsupported versions, this is a no-op.
@@ -897,17 +898,11 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.paused:
-        // Don't pause during PiP — the video should keep playing in the PiP window.
+        // PiP 中は一時停止しない (PiP ウィンドウでそのまま再生を継続する)。
+        // Android の auto PiP はネイティブ側で onUserLeaveHint 経由で発火するため、
+        // ここで startPictureInPicture を呼ぶ必要はない (Activity は既に background 化しており
+        // Background Activity Start 制限に阻まれる可能性が高い)。
         if (_controller.value.isPipActive) {
-          return;
-        }
-        // API 26-30 fallback: auto PiP enabled and playing → start PiP manually.
-        // On API 31+, native setAutoEnterEnabled triggers PiP before this callback,
-        // so isPipActive is already true and we hit the early return above.
-        if (_controller.value.isAutoPipEnabled &&
-            _controller.value.isPlaying &&
-            defaultTargetPlatform == TargetPlatform.android) {
-          _controller.startPictureInPicture();
           return;
         }
         _wasPlayingBeforePause = _controller.value.isPlaying;
