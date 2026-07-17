@@ -109,7 +109,6 @@ class _BumbleBeeRemoteVideo extends StatefulWidget {
 
 class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
   late MiniController _controller;
-  bool _isPipSupported = false;
 
   @override
   void initState() {
@@ -121,25 +120,7 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
     _controller.addListener(() {
       setState(() {});
     });
-    _controller.initialize().then((_) => _initPictureInPicture());
-  }
-
-  Future<void> _initPictureInPicture() async {
-    final bool supported = await _controller.isPictureInPictureSupported();
-    if (mounted) {
-      setState(() {
-        _isPipSupported = supported;
-      });
-    }
-  }
-
-  Future<void> _togglePictureInPicture() async {
-    final bool isActive = await _controller.isPictureInPictureActive();
-    if (isActive) {
-      await _controller.stopPictureInPicture();
-    } else {
-      await _controller.startPictureInPicture();
-    }
+    _controller.initialize();
   }
 
   @override
@@ -169,23 +150,23 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
               ),
             ),
           ),
-          if (_isPipSupported) ...<Widget>[
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton.icon(
-                onPressed: _togglePictureInPicture,
-                icon: const Icon(Icons.picture_in_picture),
-                label: const Text('Picture in Picture'),
-              ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton.icon(
+              onPressed: _controller.isPipActive
+                  ? () => _controller.stopPictureInPicture()
+                  : null,
+              icon: const Icon(Icons.fullscreen_exit),
+              label: const Text('Stop PiP'),
             ),
-            SwitchListTile(
-              title: const Text('Auto PiP'),
-              value: _controller.isAutoPipEnabled,
-              onChanged: (bool enabled) {
-                _controller.setAutoPictureInPicture(enabled);
-              },
-            ),
-          ],
+          ),
+          SwitchListTile(
+            title: const Text('Auto PiP'),
+            value: _controller.isAutoPipEnabled,
+            onChanged: (bool enabled) {
+              _controller.setAutoPictureInPicture(enabled);
+            },
+          ),
         ],
       ),
     );

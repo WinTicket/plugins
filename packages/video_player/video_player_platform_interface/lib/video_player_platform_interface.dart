@@ -124,48 +124,21 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('isPlaying() has not been implemented.');
   }
 
-  /// Starts Picture-in-Picture mode.
-  Future<void> startPictureInPicture(int textureId) {
-    throw UnimplementedError(
-        'startPictureInPicture() has not been implemented.');
-  }
-
   /// Stops Picture-in-Picture mode.
   Future<void> stopPictureInPicture(int textureId) {
     throw UnimplementedError(
         'stopPictureInPicture() has not been implemented.');
   }
 
-  /// Returns whether Picture-in-Picture is supported on this device.
-  Future<bool> isPictureInPictureSupported(int textureId) {
-    throw UnimplementedError(
-        'isPictureInPictureSupported() has not been implemented.');
-  }
-
-  /// Returns whether Picture-in-Picture is currently active.
-  Future<bool> isPictureInPictureActive(int textureId) {
-    throw UnimplementedError(
-        'isPictureInPictureActive() has not been implemented.');
-  }
-
   /// Enables or disables automatic Picture-in-Picture.
   ///
   /// When enabled, PiP starts automatically when the user navigates away.
   /// Supported on Android 12+ (API 31+) and iOS 14.2+.
-  /// On Android 8-11, the Flutter side provides a fallback.
   Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
     throw UnimplementedError(
         'setAutoPictureInPicture() has not been implemented.');
   }
 
-  /// Completes the PiP restore animation by providing the source rect
-  /// (the screen position of the video widget) so the PiP window
-  /// animates back to the correct position.
-  Future<void> completePipRestoreWithSourceRect(
-      int textureId, double x, double y, double width, double height) {
-    throw UnimplementedError(
-        'completePipRestoreWithSourceRect() has not been implemented.');
-  }
 }
 
 /// バッファを調整するための各パラメーター
@@ -408,9 +381,6 @@ enum VideoEventType {
 
   /// Picture-in-Picture has stopped.
   pipStopped,
-
-  /// The system requests restoring the user interface from Picture-in-Picture.
-  pipRestoreUserInterface,
 
   /// Auto Picture-in-Picture enabled state changed.
   autoPipChanged,

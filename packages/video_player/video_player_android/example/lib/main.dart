@@ -159,43 +159,23 @@ class _PipControls extends StatefulWidget {
 }
 
 class _PipControlsState extends State<_PipControls> {
-  bool _isPipSupported = false;
   late VoidCallback _listener;
 
   @override
   void initState() {
     super.initState();
     _listener = () {
-      if (widget.controller.value.isInitialized && !_isPipSupported) {
-        _checkPipSupport();
-      }
       if (mounted) {
         setState(() {});
       }
     };
     widget.controller.addListener(_listener);
-    if (widget.controller.value.isInitialized) {
-      _checkPipSupport();
-    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_listener);
     super.dispose();
-  }
-
-  Future<void> _checkPipSupport() async {
-    if (!widget.controller.value.isInitialized) {
-      return;
-    }
-    final bool supported =
-        await widget.controller.isPictureInPictureSupported();
-    if (mounted) {
-      setState(() {
-        _isPipSupported = supported;
-      });
-    }
   }
 
   @override
@@ -210,42 +190,22 @@ class _PipControlsState extends State<_PipControls> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text('Supported: $_isPipSupported'),
           Text('Active: ${widget.controller.isPipActive}'),
           const SizedBox(height: 8),
-          Row(
-            children: <Widget>[
-              ElevatedButton.icon(
-                onPressed: _isPipSupported && !widget.controller.isPipActive
-                    ? () => widget.controller.startPictureInPicture()
-                    : null,
-                icon: const Icon(Icons.picture_in_picture),
-                label: const Text('Start PiP'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: widget.controller.isPipActive
-                    ? () => widget.controller.stopPictureInPicture()
-                    : null,
-                icon: const Icon(Icons.fullscreen_exit),
-                label: const Text('Stop PiP'),
-              ),
-            ],
+          ElevatedButton.icon(
+            onPressed: widget.controller.isPipActive
+                ? () => widget.controller.stopPictureInPicture()
+                : null,
+            icon: const Icon(Icons.fullscreen_exit),
+            label: const Text('Stop PiP'),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
             title: const Text('Auto PiP'),
             value: widget.controller.isAutoPipEnabled,
-            onChanged: _isPipSupported
-                ? (bool enabled) {
-                    widget.controller.setAutoPictureInPicture(enabled);
-                  }
-                : null,
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: _checkPipSupport,
-            child: const Text('Refresh PiP Status'),
+            onChanged: (bool enabled) {
+              widget.controller.setAutoPictureInPicture(enabled);
+            },
           ),
           const SizedBox(height: 16),
         ],

@@ -271,9 +271,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           notifyListeners();
           onPipActiveChanged?.call(false);
           break;
-        case VideoEventType.pipRestoreUserInterface:
-          _completePipRestore();
-          break;
         case VideoEventType.autoPipChanged:
           _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
           notifyListeners();
@@ -377,47 +374,15 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     value = value.copyWith(position: position);
   }
 
-  /// Starts Picture-in-Picture mode.
-  Future<void> startPictureInPicture() {
-    return _platform.startPictureInPicture(_textureId);
-  }
-
   /// Stops Picture-in-Picture mode.
   Future<void> stopPictureInPicture() {
     return _platform.stopPictureInPicture(_textureId);
-  }
-
-  /// Returns whether Picture-in-Picture is supported on this device.
-  Future<bool> isPictureInPictureSupported() {
-    return _platform.isPictureInPictureSupported(_textureId);
-  }
-
-  /// Returns whether Picture-in-Picture is currently active.
-  Future<bool> isPictureInPictureActive() {
-    return _platform.isPictureInPictureActive(_textureId);
   }
 
   /// Sets whether Picture-in-Picture should start automatically when the app
   /// enters background.
   Future<void> setAutoPictureInPicture(bool enabled) {
     return _platform.setAutoPictureInPicture(_textureId, enabled);
-  }
-
-  /// Callback that returns the screen rect of the video widget.
-  /// Set by the VideoPlayer widget.
-  Rect? Function()? pipSourceRectProvider;
-
-  void _completePipRestore() {
-    final rect = pipSourceRectProvider?.call();
-    if (rect != null) {
-      _platform.completePipRestoreWithSourceRect(
-        _textureId,
-        rect.left,
-        rect.top,
-        rect.width,
-        rect.height,
-      );
-    }
   }
 
 }
@@ -448,18 +413,8 @@ class _VideoPlayerState extends State<VideoPlayer> {
   }
 
   late VoidCallback _listener;
-  final GlobalKey _textureKey = GlobalKey();
 
   late int _textureId;
-
-  Rect? _getSourceRect() {
-    final renderBox =
-        _textureKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return null;
-    final offset = renderBox.localToGlobal(Offset.zero);
-    return Rect.fromLTWH(
-        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
-  }
 
   @override
   void initState() {
@@ -468,34 +423,27 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
-    oldWidget.controller.pipSourceRectProvider = null;
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
-    widget.controller.pipSourceRectProvider = null;
   }
 
   @override
   Widget build(BuildContext context) {
     return _textureId == MiniController.kUninitializedTextureId
         ? Container()
-        : KeyedSubtree(
-            key: _textureKey,
-            child: _platform.buildView(_textureId),
-          );
+        : _platform.buildView(_textureId);
   }
 }
 

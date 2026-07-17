@@ -344,43 +344,6 @@ class PipStatusMessage {
   }
 }
 
-class PipSourceRectMessage {
-  PipSourceRectMessage({
-    required this.textureId,
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-  });
-
-  int textureId;
-  double x;
-  double y;
-  double width;
-  double height;
-
-  Object encode() {
-    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
-    pigeonMap['textureId'] = textureId;
-    pigeonMap['x'] = x;
-    pigeonMap['y'] = y;
-    pigeonMap['width'] = width;
-    pigeonMap['height'] = height;
-    return pigeonMap;
-  }
-
-  static PipSourceRectMessage decode(Object message) {
-    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
-    return PipSourceRectMessage(
-      textureId: pigeonMap['textureId']! as int,
-      x: pigeonMap['x']! as double,
-      y: pigeonMap['y']! as double,
-      width: pigeonMap['width']! as double,
-      height: pigeonMap['height']! as double,
-    );
-  }
-}
-
 class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   const _AVFoundationVideoPlayerApiCodec();
   @override
@@ -437,10 +400,6 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else
-    if (value is PipSourceRectMessage) {
-      buffer.putUint8(141);
-      writeValue(buffer, value.encode());
-    } else
 {
       super.writeValue(buffer, value);
     }
@@ -486,9 +445,6 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
 
       case 140:
         return PipStatusMessage.decode(readValue(buffer)!);
-
-      case 141:
-        return PipSourceRectMessage.decode(readValue(buffer)!);
 
       default:
         return super.readValueOfType(type, buffer);
@@ -885,28 +841,6 @@ class AVFoundationVideoPlayerApi {
     }
   }
 
-  Future<void> startPictureInPicture(TextureMessage arg_msg) async {
-    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: _binaryMessenger);
-    final Map<Object?, Object?>? replyMap =
-        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
-    if (replyMap == null) {
-      throw PlatformException(
-        code: 'channel-error',
-        message: 'Unable to establish connection on channel.',
-      );
-    } else if (replyMap['error'] != null) {
-      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
-      throw PlatformException(
-        code: (error['code'] as String?)!,
-        message: error['message'] as String?,
-        details: error['details'],
-      );
-    } else {
-      return;
-    }
-  }
-
   Future<void> stopPictureInPicture(TextureMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: _binaryMessenger);
@@ -926,60 +860,6 @@ class AVFoundationVideoPlayerApi {
       );
     } else {
       return;
-    }
-  }
-
-  Future<PipStatusMessage> isPictureInPictureSupported(TextureMessage arg_msg) async {
-    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureSupported', codec, binaryMessenger: _binaryMessenger);
-    final Map<Object?, Object?>? replyMap =
-        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
-    if (replyMap == null) {
-      throw PlatformException(
-        code: 'channel-error',
-        message: 'Unable to establish connection on channel.',
-      );
-    } else if (replyMap['error'] != null) {
-      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
-      throw PlatformException(
-        code: (error['code'] as String?)!,
-        message: error['message'] as String?,
-        details: error['details'],
-      );
-    } else if (replyMap['result'] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
-    } else {
-      return (replyMap['result'] as PipStatusMessage?)!;
-    }
-  }
-
-  Future<PipStatusMessage> isPictureInPictureActive(TextureMessage arg_msg) async {
-    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.isPictureInPictureActive', codec, binaryMessenger: _binaryMessenger);
-    final Map<Object?, Object?>? replyMap =
-        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
-    if (replyMap == null) {
-      throw PlatformException(
-        code: 'channel-error',
-        message: 'Unable to establish connection on channel.',
-      );
-    } else if (replyMap['error'] != null) {
-      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
-      throw PlatformException(
-        code: (error['code'] as String?)!,
-        message: error['message'] as String?,
-        details: error['details'],
-      );
-    } else if (replyMap['result'] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
-    } else {
-      return (replyMap['result'] as PipStatusMessage?)!;
     }
   }
 
@@ -1005,25 +885,4 @@ class AVFoundationVideoPlayerApi {
     }
   }
 
-  Future<void> completePipRestoreWithSourceRect(PipSourceRectMessage arg_msg) async {
-    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect', codec, binaryMessenger: _binaryMessenger);
-    final Map<Object?, Object?>? replyMap =
-        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
-    if (replyMap == null) {
-      throw PlatformException(
-        code: 'channel-error',
-        message: 'Unable to establish connection on channel.',
-      );
-    } else if (replyMap['error'] != null) {
-      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
-      throw PlatformException(
-        code: (error['code'] as String?)!,
-        message: error['message'] as String?,
-        details: error['details'],
-      );
-    } else {
-      return;
-    }
-  }
 }

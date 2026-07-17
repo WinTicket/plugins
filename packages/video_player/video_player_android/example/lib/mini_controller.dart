@@ -271,8 +271,6 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           notifyListeners();
           onPipActiveChanged?.call(false);
           break;
-        case VideoEventType.pipRestoreUserInterface:
-          break;
         case VideoEventType.autoPipChanged:
           _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
           notifyListeners();
@@ -376,24 +374,9 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     value = value.copyWith(position: position);
   }
 
-  /// Starts Picture-in-Picture mode.
-  Future<void> startPictureInPicture() {
-    return _platform.startPictureInPicture(_textureId);
-  }
-
   /// Stops Picture-in-Picture mode.
   Future<void> stopPictureInPicture() {
     return _platform.stopPictureInPicture(_textureId);
-  }
-
-  /// Returns whether Picture-in-Picture is supported on this device.
-  Future<bool> isPictureInPictureSupported() {
-    return _platform.isPictureInPictureSupported(_textureId);
-  }
-
-  /// Returns whether Picture-in-Picture is currently active.
-  Future<bool> isPictureInPictureActive() {
-    return _platform.isPictureInPictureActive(_textureId);
   }
 
   /// Sets whether Picture-in-Picture should start automatically when the app

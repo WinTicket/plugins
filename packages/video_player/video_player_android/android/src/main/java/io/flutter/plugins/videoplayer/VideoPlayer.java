@@ -353,25 +353,6 @@ final class VideoPlayer {
     this.pipRequestHandler = handler;
   }
 
-  void startPictureInPicture() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-      throw new UnsupportedOperationException(
-          "Picture-in-Picture requires API level 26 (Android 8.0) or higher.");
-    }
-    if (activity == null) {
-      throw new IllegalStateException(
-          "Cannot start Picture-in-Picture: no Activity is available.");
-    }
-
-    if (pipRequestHandler != null) {
-      pipRequestHandler.onPipRequested();
-    }
-
-    PictureInPictureParams params =
-        new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
-    activity.enterPictureInPictureMode(params);
-  }
-
   void stopPictureInPicture() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
       return;
@@ -383,22 +364,6 @@ final class VideoPlayer {
     Intent intent = new Intent(activity, activity.getClass());
     intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     activity.startActivity(intent);
-  }
-
-  boolean isPictureInPictureSupported() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || activity == null) {
-      return false;
-    }
-    return activity
-        .getPackageManager()
-        .hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
-  }
-
-  boolean isPictureInPictureActive() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || activity == null) {
-      return false;
-    }
-    return activity.isInPictureInPictureMode();
   }
 
   void setAutoPictureInPicture(boolean enabled) {

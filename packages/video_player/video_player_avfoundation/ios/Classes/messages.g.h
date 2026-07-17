@@ -146,21 +146,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong) NSNumber * value;
 @end
 
-@interface FLTPipSourceRectMessage : NSObject
-/// `init` unavailable to enforce nonnull fields, see the `make` class method.
-- (instancetype)init NS_UNAVAILABLE;
-+ (instancetype)makeWithTextureId:(NSNumber *)textureId
-    x:(NSNumber *)x
-    y:(NSNumber *)y
-    width:(NSNumber *)width
-    height:(NSNumber *)height;
-@property(nonatomic, strong) NSNumber * textureId;
-@property(nonatomic, strong) NSNumber * x;
-@property(nonatomic, strong) NSNumber * y;
-@property(nonatomic, strong) NSNumber * width;
-@property(nonatomic, strong) NSNumber * height;
-@end
-
 /// The codec used by FLTAVFoundationVideoPlayerApi.
 NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 
@@ -186,14 +171,8 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (void)setMaxVideoResolution:(FLTMaxVideoResolutionMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
 - (nullable FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-- (void)startPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)stopPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-/// @return `nil` only when `error != nil`.
-- (nullable FLTPipStatusMessage *)isPictureInPictureSupported:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-/// @return `nil` only when `error != nil`.
-- (nullable FLTPipStatusMessage *)isPictureInPictureActive:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
-- (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 @end
 
 extern void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMessenger, NSObject<FLTAVFoundationVideoPlayerApi> *_Nullable api);

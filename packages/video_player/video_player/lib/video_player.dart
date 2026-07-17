@@ -443,9 +443,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           value = value.copyWith(isPipActive: false);
           onPipActiveChanged?.call(false);
           break;
-        case VideoEventType.pipRestoreUserInterface:
-          _completePipRestore();
-          break;
         case VideoEventType.autoPipChanged:
           value = value.copyWith(isAutoPipEnabled: event.isAutoPipEnabled);
           break;
@@ -490,7 +487,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       _lifeCycleObserver?.dispose();
     }
     _isDisposed = true;
-    pipSourceRectProvider = null;
     super.dispose();
   }
 
@@ -719,18 +715,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     await _applyMaxVideoResolution();
   }
 
-  /// Starts Picture-in-Picture mode.
-  ///
-  /// Supported on iOS (14.2+) and Android (8.0+).
-  /// On Android, the Activity must declare `android:supportsPictureInPicture="true"`
-  /// in the AndroidManifest.xml.
-  Future<void> startPictureInPicture() async {
-    if (_isDisposedOrNotInitialized) {
-      return;
-    }
-    await _videoPlayerPlatform.startPictureInPicture(_textureId);
-  }
-
   /// Stops Picture-in-Picture mode.
   ///
   /// Supported on iOS and Android.
@@ -741,31 +725,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     await _videoPlayerPlatform.stopPictureInPicture(_textureId);
   }
 
-  /// Returns whether Picture-in-Picture is supported on this device.
-  ///
-  /// Supported on iOS (14.2+) and Android (8.0+).
-  Future<bool> isPictureInPictureSupported() async {
-    if (_isDisposedOrNotInitialized) {
-      return false;
-    }
-    return _videoPlayerPlatform.isPictureInPictureSupported(_textureId);
-  }
-
-  /// Returns whether Picture-in-Picture is currently active.
-  ///
-  /// Supported on iOS and Android.
-  Future<bool> isPictureInPictureActive() async {
-    if (_isDisposedOrNotInitialized) {
-      return false;
-    }
-    return _videoPlayerPlatform.isPictureInPictureActive(_textureId);
-  }
-
   /// Enables or disables automatic Picture-in-Picture.
   ///
   /// When enabled:
   /// - Android 12+ (API 31+): Uses native setAutoEnterEnabled
-  /// - Android 8-11 (API 26-30): Flutter-side fallback via AppLifecycleState
   /// - iOS 14.2+: Uses canStartPictureInPictureAutomaticallyFromInline
   ///
   /// On unsupported versions, this is a no-op.
@@ -776,31 +739,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
   }
 
-  /// Callback that returns the screen rect of the video Texture widget.
-  /// Set automatically by [_VideoPlayerState].
-  Rect? Function()? pipSourceRectProvider;
-
   /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
   ///
   /// [isActive] が true の場合は PiP に入ったこと、false の場合は
   /// PiP から出たことを示す。
   /// [VideoPlayerValue.isPipActive] と同じ値がパラメータで渡される。
   void Function(bool isActive)? onPipActiveChanged;
-
-  void _completePipRestore() {
-    final rect = pipSourceRectProvider?.call();
-    if (_isDisposedOrNotInitialized) return;
-
-    if (rect != null) {
-      _videoPlayerPlatform.completePipRestoreWithSourceRect(
-        _textureId,
-        rect.left,
-        rect.top,
-        rect.width,
-        rect.height,
-      );
-    }
-  }
 
   /// Sets the caption offset.
   ///
@@ -900,15 +844,6 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
         if (_controller.value.isPipActive) {
           return;
         }
-        // API 26-30 fallback: auto PiP enabled and playing → start PiP manually.
-        // On API 31+, native setAutoEnterEnabled triggers PiP before this callback,
-        // so isPipActive is already true and we hit the early return above.
-        if (_controller.value.isAutoPipEnabled &&
-            _controller.value.isPlaying &&
-            defaultTargetPlatform == TargetPlatform.android) {
-          _controller.startPictureInPicture();
-          return;
-        }
         _wasPlayingBeforePause = _controller.value.isPlaying;
         _controller.pause();
         break;
@@ -952,18 +887,8 @@ class _VideoPlayerState extends State<VideoPlayer> {
   }
 
   late VoidCallback _listener;
-  final GlobalKey _textureKey = GlobalKey();
 
   late int _textureId;
-
-  Rect? _getSourceRect() {
-    final renderBox =
-        _textureKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null || !renderBox.hasSize) return null;
-    final offset = renderBox.localToGlobal(Offset.zero);
-    return Rect.fromLTWH(
-        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
-  }
 
   @override
   void initState() {
@@ -972,24 +897,20 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
-    oldWidget.controller.pipSourceRectProvider = null;
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
-    widget.controller.pipSourceRectProvider = null;
   }
 
   @override
@@ -998,10 +919,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
         ? Container()
         : _VideoPlayerWithRotation(
             rotation: widget.controller.value.rotationCorrection,
-            child: KeyedSubtree(
-              key: _textureKey,
-              child: _videoPlayerPlatform.buildView(_textureId),
-            ),
+            child: _videoPlayerPlatform.buildView(_textureId),
           );
   }
 }

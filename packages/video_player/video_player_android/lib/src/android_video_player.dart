@@ -214,27 +214,8 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> startPictureInPicture(int textureId) {
-    return _api.startPictureInPicture(TextureMessage(textureId: textureId));
-  }
-
-  @override
   Future<void> stopPictureInPicture(int textureId) {
     return _api.stopPictureInPicture(TextureMessage(textureId: textureId));
-  }
-
-  @override
-  Future<bool> isPictureInPictureSupported(int textureId) async {
-    final PipStatusMessage response = await _api
-        .isPictureInPictureSupported(TextureMessage(textureId: textureId));
-    return response.value;
-  }
-
-  @override
-  Future<bool> isPictureInPictureActive(int textureId) async {
-    final PipStatusMessage response = await _api
-        .isPictureInPictureActive(TextureMessage(textureId: textureId));
-    return response.value;
   }
 
   @override

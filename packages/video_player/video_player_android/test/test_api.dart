@@ -126,10 +126,7 @@ abstract class TestHostVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void startPictureInPicture(TextureMessage msg);
   void stopPictureInPicture(TextureMessage msg);
-  PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
-  PipStatusMessage isPictureInPictureActive(TextureMessage msg);
   void setAutoPictureInPicture(PipStatusMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
@@ -371,22 +368,6 @@ abstract class TestHostVideoPlayerApi {
     }
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture', codec, binaryMessenger: binaryMessenger);
-      if (api == null) {
-        channel.setMockMessageHandler(null);
-      } else {
-        channel.setMockMessageHandler((Object? message) async {
-          assert(message != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture was null, expected non-null TextureMessage.');
-          api.startPictureInPicture(arg_msg!);
-          return <Object?, Object?>{};
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
           'dev.flutter.pigeon.AndroidVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMockMessageHandler(null);
@@ -398,38 +379,6 @@ abstract class TestHostVideoPlayerApi {
           assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.stopPictureInPicture was null, expected non-null TextureMessage.');
           api.stopPictureInPicture(arg_msg!);
           return <Object?, Object?>{};
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported', codec, binaryMessenger: binaryMessenger);
-      if (api == null) {
-        channel.setMockMessageHandler(null);
-      } else {
-        channel.setMockMessageHandler((Object? message) async {
-          assert(message != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported was null, expected non-null TextureMessage.');
-          final PipStatusMessage output = api.isPictureInPictureSupported(arg_msg!);
-          return <Object?, Object?>{'result': output};
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive', codec, binaryMessenger: binaryMessenger);
-      if (api == null) {
-        channel.setMockMessageHandler(null);
-      } else {
-        channel.setMockMessageHandler((Object? message) async {
-          assert(message != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive was null, expected non-null TextureMessage.');
-          final PipStatusMessage output = api.isPictureInPictureActive(arg_msg!);
-          return <Object?, Object?>{'result': output};
         });
       }
     }

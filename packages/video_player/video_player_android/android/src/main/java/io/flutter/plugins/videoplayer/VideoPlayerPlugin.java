@@ -335,33 +335,9 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   }
 
   @Override
-  public void startPictureInPicture(TextureMessage arg) {
-    VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    player.startPictureInPicture();
-  }
-
-  @Override
   public void stopPictureInPicture(TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     player.stopPictureInPicture();
-  }
-
-  @Override
-  public PipStatusMessage isPictureInPictureSupported(TextureMessage arg) {
-    VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    return new PipStatusMessage.Builder()
-        .setTextureId(arg.getTextureId())
-        .setValue(player.isPictureInPictureSupported())
-        .build();
-  }
-
-  @Override
-  public PipStatusMessage isPictureInPictureActive(TextureMessage arg) {
-    VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    return new PipStatusMessage.Builder()
-        .setTextureId(arg.getTextureId())
-        .setValue(player.isPictureInPictureActive())
-        .build();
   }
 
   @Override

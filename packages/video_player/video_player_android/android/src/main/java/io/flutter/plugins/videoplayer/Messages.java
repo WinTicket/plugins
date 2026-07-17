@@ -861,10 +861,7 @@ public class Messages {
     void setBuffer(@NonNull BufferMessage msg);
     void setMaxVideoResolution(@NonNull MaxVideoResolutionMessage msg);
     @NonNull IsPlayingMessage isPlaying(@NonNull TextureMessage msg);
-    void startPictureInPicture(@NonNull TextureMessage msg);
     void stopPictureInPicture(@NonNull TextureMessage msg);
-    @NonNull PipStatusMessage isPictureInPictureSupported(@NonNull TextureMessage msg);
-    @NonNull PipStatusMessage isPictureInPictureActive(@NonNull TextureMessage msg);
     void setAutoPictureInPicture(@NonNull PipStatusMessage msg);
 
     /** The codec used by AndroidVideoPlayerApi. */
@@ -1231,30 +1228,6 @@ public class Messages {
       }
       {
         BasicMessageChannel<Object> channel =
-            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.startPictureInPicture", getCodec());
-        if (api != null) {
-          channel.setMessageHandler((message, reply) -> {
-            Map<String, Object> wrapped = new HashMap<>();
-            try {
-              ArrayList<Object> args = (ArrayList<Object>)message;
-              TextureMessage msgArg = (TextureMessage)args.get(0);
-              if (msgArg == null) {
-                throw new NullPointerException("msgArg unexpectedly null.");
-              }
-              api.startPictureInPicture(msgArg);
-              wrapped.put("result", null);
-            }
-            catch (Error | RuntimeException exception) {
-              wrapped.put("error", wrapError(exception));
-            }
-            reply.reply(wrapped);
-          });
-        } else {
-          channel.setMessageHandler(null);
-        }
-      }
-      {
-        BasicMessageChannel<Object> channel =
             new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.stopPictureInPicture", getCodec());
         if (api != null) {
           channel.setMessageHandler((message, reply) -> {
@@ -1267,54 +1240,6 @@ public class Messages {
               }
               api.stopPictureInPicture(msgArg);
               wrapped.put("result", null);
-            }
-            catch (Error | RuntimeException exception) {
-              wrapped.put("error", wrapError(exception));
-            }
-            reply.reply(wrapped);
-          });
-        } else {
-          channel.setMessageHandler(null);
-        }
-      }
-      {
-        BasicMessageChannel<Object> channel =
-            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureSupported", getCodec());
-        if (api != null) {
-          channel.setMessageHandler((message, reply) -> {
-            Map<String, Object> wrapped = new HashMap<>();
-            try {
-              ArrayList<Object> args = (ArrayList<Object>)message;
-              TextureMessage msgArg = (TextureMessage)args.get(0);
-              if (msgArg == null) {
-                throw new NullPointerException("msgArg unexpectedly null.");
-              }
-              PipStatusMessage output = api.isPictureInPictureSupported(msgArg);
-              wrapped.put("result", output);
-            }
-            catch (Error | RuntimeException exception) {
-              wrapped.put("error", wrapError(exception));
-            }
-            reply.reply(wrapped);
-          });
-        } else {
-          channel.setMessageHandler(null);
-        }
-      }
-      {
-        BasicMessageChannel<Object> channel =
-            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.isPictureInPictureActive", getCodec());
-        if (api != null) {
-          channel.setMessageHandler((message, reply) -> {
-            Map<String, Object> wrapped = new HashMap<>();
-            try {
-              ArrayList<Object> args = (ArrayList<Object>)message;
-              TextureMessage msgArg = (TextureMessage)args.get(0);
-              if (msgArg == null) {
-                throw new NullPointerException("msgArg unexpectedly null.");
-              }
-              PipStatusMessage output = api.isPictureInPictureActive(msgArg);
-              wrapped.put("result", output);
             }
             catch (Error | RuntimeException exception) {
               wrapped.put("error", wrapError(exception));

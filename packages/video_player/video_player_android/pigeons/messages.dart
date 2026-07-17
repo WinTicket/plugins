@@ -105,9 +105,6 @@ abstract class AndroidVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void startPictureInPicture(TextureMessage msg);
   void stopPictureInPicture(TextureMessage msg);
-  PipStatusMessage isPictureInPictureSupported(TextureMessage msg);
-  PipStatusMessage isPictureInPictureActive(TextureMessage msg);
   void setAutoPictureInPicture(PipStatusMessage msg);
 }

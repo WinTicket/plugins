@@ -162,9 +162,6 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.pipStarted);
         case 'pipStopped':
           return VideoEvent(eventType: VideoEventType.pipStopped);
-        case 'pipRestoreUserInterface':
-          return VideoEvent(
-              eventType: VideoEventType.pipRestoreUserInterface);
         case 'autoPipChanged':
           return VideoEvent(
             eventType: VideoEventType.autoPipChanged,
@@ -216,45 +213,14 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> startPictureInPicture(int textureId) {
-    return _api.startPictureInPicture(TextureMessage(textureId: textureId));
-  }
-
-  @override
   Future<void> stopPictureInPicture(int textureId) {
     return _api.stopPictureInPicture(TextureMessage(textureId: textureId));
-  }
-
-  @override
-  Future<bool> isPictureInPictureSupported(int textureId) async {
-    final PipStatusMessage response = await _api
-        .isPictureInPictureSupported(TextureMessage(textureId: textureId));
-    return response.value;
-  }
-
-  @override
-  Future<bool> isPictureInPictureActive(int textureId) async {
-    final PipStatusMessage response = await _api
-        .isPictureInPictureActive(TextureMessage(textureId: textureId));
-    return response.value;
   }
 
   @override
   Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
     return _api.setAutoPictureInPicture(
         PipStatusMessage(textureId: textureId, value: enabled));
-  }
-
-  @override
-  Future<void> completePipRestoreWithSourceRect(
-      int textureId, double x, double y, double width, double height) {
-    return _api.completePipRestoreWithSourceRect(PipSourceRectMessage(
-      textureId: textureId,
-      x: x,
-      y: y,
-      width: width,
-      height: height,
-    ));
   }
 
   EventChannel _eventChannelFor(int textureId) {

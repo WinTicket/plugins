@@ -123,29 +123,9 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void startPictureInPicture(TextureMessage arg) {
-    log.add('startPictureInPicture');
-    textureMessage = arg;
-  }
-
-  @override
   void stopPictureInPicture(TextureMessage arg) {
     log.add('stopPictureInPicture');
     textureMessage = arg;
-  }
-
-  @override
-  PipStatusMessage isPictureInPictureSupported(TextureMessage arg) {
-    log.add('isPictureInPictureSupported');
-    textureMessage = arg;
-    return PipStatusMessage(textureId: arg.textureId, value: true);
-  }
-
-  @override
-  PipStatusMessage isPictureInPictureActive(TextureMessage arg) {
-    log.add('isPictureInPictureActive');
-    textureMessage = arg;
-    return PipStatusMessage(textureId: arg.textureId, value: false);
   }
 }
 
@@ -293,30 +273,10 @@ void main() {
       expect(position, const Duration(milliseconds: 234));
     });
 
-    test('startPictureInPicture', () async {
-      await player.startPictureInPicture(1);
-      expect(log.log.last, 'startPictureInPicture');
-      expect(log.textureMessage?.textureId, 1);
-    });
-
     test('stopPictureInPicture', () async {
       await player.stopPictureInPicture(1);
       expect(log.log.last, 'stopPictureInPicture');
       expect(log.textureMessage?.textureId, 1);
-    });
-
-    test('isPictureInPictureSupported', () async {
-      final bool supported = await player.isPictureInPictureSupported(1);
-      expect(log.log.last, 'isPictureInPictureSupported');
-      expect(log.textureMessage?.textureId, 1);
-      expect(supported, true);
-    });
-
-    test('isPictureInPictureActive', () async {
-      final bool active = await player.isPictureInPictureActive(1);
-      expect(log.log.last, 'isPictureInPictureActive');
-      expect(log.textureMessage?.textureId, 1);
-      expect(active, false);
     });
 
     test('videoEventsFor', () async {
@@ -405,16 +365,6 @@ void main() {
                     }),
                     (ByteData? data) {});
 
-            await _ambiguate(ServicesBinding.instance)
-                ?.defaultBinaryMessenger
-                .handlePlatformMessage(
-                    'flutter.io/videoPlayer/videoEvents123',
-                    const StandardMethodCodec()
-                        .encodeSuccessEnvelope(<String, dynamic>{
-                      'event': 'pipRestoreUserInterface',
-                    }),
-                    (ByteData? data) {});
-
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
           } else if (methodCall.method == 'cancel') {
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
@@ -448,7 +398,6 @@ void main() {
             VideoEvent(eventType: VideoEventType.bufferingEnd),
             VideoEvent(eventType: VideoEventType.pipStarted),
             VideoEvent(eventType: VideoEventType.pipStopped),
-            VideoEvent(eventType: VideoEventType.pipRestoreUserInterface),
           ]));
     });
   });
