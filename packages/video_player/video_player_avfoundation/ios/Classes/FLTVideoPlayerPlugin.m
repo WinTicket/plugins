@@ -53,7 +53,7 @@
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
 @end
 
-/// Tag used to identify the black overlay view added during PiP restore.
+/// PiP 復帰時に PiP window の縮小アニメを覆い隠す黒オーバーレイを識別するタグ。
 static const NSInteger kPipRestoreOverlayTag = 20250101;
 
 static void *timeRangeContext = &timeRangeContext;
@@ -528,7 +528,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   [self updatePlayingState];
 
-  // restoreUserInterface で追加した黒オーバーレイをフェードアウト削除する。
+  // restoreUserInterface で追加した黒オーバーレイを 0.3s フェードアウトで消す。
   UIWindow *keyWindow = nil;
   for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
     if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -541,7 +541,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   if (keyWindow) {
     UIView *overlay = [keyWindow.rootViewController.view viewWithTag:kPipRestoreOverlayTag];
     if (overlay) {
-      [UIView animateWithDuration:0.3 animations:^{
+      [UIView animateWithDuration:0.01 animations:^{
         overlay.alpha = 0;
       } completion:^(BOOL finished) {
         [overlay removeFromSuperview];
@@ -549,7 +549,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   }
 
-  // Reset the layer frame for auto PiP.
+  // Reset frame and unhide the layer. The layer was hidden in
+  // restoreUserInterface to make PiP window content invisible during dismiss animation.
   if (@available(iOS 14.2, *)) {
     BOOL needsAutoPip = _pipController.canStartPictureInPictureAutomaticallyFromInline;
     CGRect targetFrame = needsAutoPip ? CGRectMake(0, 0, 1, 1) : CGRectZero;
@@ -559,13 +560,16 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     [CATransaction setDisableActions:YES];
     [CATransaction setAnimationDuration:0];
     _pipPlayerLayer.frame = targetFrame;
+    _pipPlayerLayer.hidden = NO;
     [CATransaction commit];
   }
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
     restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
-  // 黒背景オーバーレイで Flutter view を覆う（Flutter テクスチャの遷移アーティファクトを隠す）。
+  // 黒オーバーレイで PiP window の縮小アニメを覆い隠す。
+  // iOS の PiP window は現在の window 内の view として描画されるため、
+  // keyWindow.rootViewController.view の subview として貼れば PiP layer より上に来る。
   UIWindow *keyWindow = nil;
   for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
     if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -582,7 +586,21 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     [keyWindow.rootViewController.view addSubview:overlay];
   }
 
+  // AVPlayerLayer の frame をゼロにセットしておく（縮小先を無効化）。
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  _pipPlayerLayer.frame = CGRectZero;
+  [CATransaction commit];
+
   completionHandler(YES);
+
+  // completionHandler 直後に AVPlayerLayer を hidden にすることで、
+  // iOS が PiP ウィンドウに流し込むコンテンツを空にし、
+  // 縮小アニメーション自体を視覚的に消す。
+  // 次の run loop で反映することで restore フロー完了後に確実に hidden 化する。
+  dispatch_async(dispatch_get_main_queue(), ^{
+    self->_pipPlayerLayer.hidden = YES;
+  });
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
