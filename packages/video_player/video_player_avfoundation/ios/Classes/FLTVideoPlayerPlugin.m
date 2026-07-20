@@ -472,31 +472,36 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setAutoPictureInPicture:(BOOL)enabled {
-  BOOL effectiveEnabled = NO;
   if (@available(iOS 14.2, *)) {
-    if (!_pipController) {
-      [self setupPictureInPicture];
-    }
-    if (_pipController) {
-      // Auto PiP requires the AVPlayerLayer to have a non-zero frame so that
-      // iOS considers the player to be "playing inline". With CGRectZero the
-      // system never triggers automatic PiP on app backgrounding.
-      [CATransaction begin];
-      [CATransaction setDisableActions:YES];
-      if (enabled) {
-        _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
-      } else {
-        _pipPlayerLayer.frame = CGRectZero;
+    if (enabled) {
+      // Auto PiP 有効化: AVPlayerLayer と AVPictureInPictureController を setup し、
+      // layer を Root Window に attach した上で 1x1 frame を与える。iOS はこれを
+      // "playing inline" と認識し、bg 遷移時に自動 PiP を起動する。
+      if (!_pipController) {
+        [self setupPictureInPicture];
       }
-      [CATransaction commit];
-      _pipController.canStartPictureInPictureAutomaticallyFromInline = enabled;
-      effectiveEnabled = enabled;
+      if (_pipController) {
+        // Auto PiP requires the AVPlayerLayer to have a non-zero frame so that
+        // iOS considers the player to be "playing inline". With CGRectZero the
+        // system never triggers automatic PiP on app backgrounding.
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+        [CATransaction commit];
+        _pipController.canStartPictureInPictureAutomaticallyFromInline = YES;
+      }
+    } else {
+      // Auto PiP 無効化: PiP layer / controller を完全 teardown する。
+      // layer が Root Window から外れることで "AVPlayer 単独" 状態に戻り、
+      // AVAudioSession.setCategory(.playback) だけで bg audio が継続可能になる。
+      // audioOnly / off の区別は呼び出し側 (app) の AVAudioSession 制御で行う。
+      [self tearDownPictureInPicture];
     }
   }
   if (_eventSink) {
     _eventSink(@{
       @"event" : @"autoPipChanged",
-      @"enabled" : @(effectiveEnabled)
+      @"enabled" : @(enabled)
     });
   }
 }
@@ -946,9 +951,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
                           error:(FlutterError **)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
   if (input.value.boolValue) {
+    // 他プレイヤーの PiP を先に teardown してから対象プレイヤーを有効化する
+    // (AVPictureInPictureController の複数同時生成による isPictureInPicturePossible=NO 回避)
     [self tearDownPictureInPictureForAllPlayersExcept:input.textureId];
-    [player setupPictureInPicture];
   }
+  // setup / teardown は Player レベルの setAutoPictureInPicture: に委譲する
   [player setAutoPictureInPicture:input.value.boolValue];
 }
 
