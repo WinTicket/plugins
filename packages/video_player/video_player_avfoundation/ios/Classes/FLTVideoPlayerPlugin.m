@@ -446,6 +446,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       }
     }
     _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
+    _pipController.requiresLinearPlayback = NO;
     _pipController.delegate = self;
   }
 }
@@ -546,7 +547,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   if (keyWindow) {
     UIView *overlay = [keyWindow.rootViewController.view viewWithTag:kPipRestoreOverlayTag];
     if (overlay) {
-      [UIView animateWithDuration:0.01 animations:^{
+      [UIView animateWithDuration:0.28 animations:^{
         overlay.alpha = 0;
       } completion:^(BOOL finished) {
         [overlay removeFromSuperview];
@@ -586,9 +587,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   if (keyWindow) {
     UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
-    overlay.backgroundColor = [UIColor blackColor];
+    overlay.backgroundColor = [UIColor colorWithWhite:0.04 alpha:1.0];
     overlay.tag = kPipRestoreOverlayTag;
+    overlay.alpha = 0;
     [keyWindow.rootViewController.view addSubview:overlay];
+    [UIView animateWithDuration:0.05 animations:^{
+      overlay.alpha = 1.0;
+    }];
   }
 
   // AVPlayerLayer の frame をゼロにセットしておく（縮小先を無効化）。
@@ -599,13 +604,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
   completionHandler(YES);
 
-  // completionHandler 直後に AVPlayerLayer を hidden にすることで、
+  // completionHandler 直後に AVPlayerLayer を即座に hidden にすることで、
   // iOS が PiP ウィンドウに流し込むコンテンツを空にし、
-  // 縮小アニメーション自体を視覚的に消す。
-  // 次の run loop で反映することで restore フロー完了後に確実に hidden 化する。
-  dispatch_async(dispatch_get_main_queue(), ^{
-    self->_pipPlayerLayer.hidden = YES;
-  });
+  // 縮小アニメーション自体を視覚的に消す。遅延を作らず同期的に反映する。
+  _pipPlayerLayer.hidden = YES;
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
