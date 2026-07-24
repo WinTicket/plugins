@@ -87,10 +87,22 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   ) async {}
 
   @override
-  Future<bool?> get isPlaying async => value.isPlaying;
+  Future<bool> get isPlaying async => value.isPlaying;
 
   @override
   Future<void> setBuffer(Buffer buffer) async {}
+
+  @override
+  Future<void> stopPictureInPicture() async {}
+
+  @override
+  Future<void> setAutoPictureInPicture(bool enabled) async {}
+
+  @override
+  void Function(bool isActive)? onPipActiveChanged;
+
+  @override
+  Rect? Function()? pipSourceRectProvider;
 }
 
 Future<ClosedCaptionFile> _loadClosedCaption() async =>
@@ -163,6 +175,30 @@ void main() {
           (Widget widget) => widget is Texture && widget.textureId == 102,
         ),
         findsOneWidget);
+  });
+
+  testWidgets('provides the video source rect for PiP restore',
+      (WidgetTester tester) async {
+    final FakeController controller = FakeController()..textureId = 123;
+
+    await tester.pumpWidget(
+      Center(
+        child: SizedBox(
+          width: 320,
+          height: 180,
+          child: VideoPlayer(controller),
+        ),
+      ),
+    );
+
+    expect(
+      controller.pipSourceRectProvider?.call(),
+      tester.getRect(find.byType(Texture)),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    expect(controller.pipSourceRectProvider, isNull);
   });
 
   testWidgets('non-zero rotationCorrection value is used',

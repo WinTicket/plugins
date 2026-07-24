@@ -162,6 +162,9 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.pipStarted);
         case 'pipStopped':
           return VideoEvent(eventType: VideoEventType.pipStopped);
+        case 'pipRestoreUserInterface':
+          return VideoEvent(
+              eventType: VideoEventType.pipRestoreUserInterface);
         case 'autoPipChanged':
           return VideoEvent(
             eventType: VideoEventType.autoPipChanged,
@@ -221,6 +224,18 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
     return _api.setAutoPictureInPicture(
         PipStatusMessage(textureId: textureId, value: enabled));
+  }
+
+  @override
+  Future<void> completePipRestoreWithSourceRect(
+      int textureId, double x, double y, double width, double height) {
+    return _api.completePipRestoreWithSourceRect(PipSourceRectMessage(
+      textureId: textureId,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+    ));
   }
 
   EventChannel _eventChannelFor(int textureId) {

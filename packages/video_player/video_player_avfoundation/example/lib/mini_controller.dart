@@ -173,7 +173,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   bool get isPipActive => _isPipActive;
 
   /// Whether auto Picture-in-Picture is currently enabled.
-  bool _isAutoPipEnabled = false;
+  bool _isAutoPipEnabled = true;
 
   /// Returns whether auto Picture-in-Picture is currently enabled.
   bool get isAutoPipEnabled => _isAutoPipEnabled;
@@ -183,6 +183,10 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// [isActive] が true の場合は PiP に入ったこと、false の場合は
   /// PiP から出たことを示す。
   void Function(bool isActive)? onPipActiveChanged;
+
+  /// Callback that returns the screen rect of the video Texture widget.
+  /// Set automatically by [_VideoPlayerState].
+  Rect? Function()? pipSourceRectProvider;
 
   Timer? _timer;
   Completer<void>? _creatingCompleter;
@@ -271,6 +275,9 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           notifyListeners();
           onPipActiveChanged?.call(false);
           break;
+        case VideoEventType.pipRestoreUserInterface:
+          _completePipRestore();
+          break;
         case VideoEventType.autoPipChanged:
           _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
           notifyListeners();
@@ -292,6 +299,8 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     _eventSubscription = _platform
         .videoEventsFor(_textureId)
         .listen(eventListener, onError: errorListener);
+
+    setAutoPictureInPicture(_isAutoPipEnabled);
     return initializingCompleter.future;
   }
 
@@ -303,6 +312,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
       await _eventSubscription?.cancel();
       await _platform.dispose(_textureId);
     }
+    pipSourceRectProvider = null;
     super.dispose();
   }
 
@@ -385,6 +395,18 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     return _platform.setAutoPictureInPicture(_textureId, enabled);
   }
 
+  void _completePipRestore() {
+    final Rect? rect = pipSourceRectProvider?.call();
+    if (rect != null) {
+      _platform.completePipRestoreWithSourceRect(
+        _textureId,
+        rect.left,
+        rect.top,
+        rect.width,
+        rect.height,
+      );
+    }
+  }
 }
 
 /// Widget that displays the video controlled by [controller].
@@ -416,6 +438,19 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
   late int _textureId;
 
+  final GlobalKey _textureKey = GlobalKey();
+
+  Rect? _getSourceRect() {
+    final RenderBox? renderBox =
+        _textureKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return null;
+    }
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -423,27 +458,34 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
+    oldWidget.controller.pipSourceRectProvider = null;
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
+    widget.controller.pipSourceRectProvider = _getSourceRect;
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
+    widget.controller.pipSourceRectProvider = null;
   }
 
   @override
   Widget build(BuildContext context) {
     return _textureId == MiniController.kUninitializedTextureId
         ? Container()
-        : _platform.buildView(_textureId);
+        : KeyedSubtree(
+            key: _textureKey,
+            child: _platform.buildView(_textureId),
+          );
   }
 }
 

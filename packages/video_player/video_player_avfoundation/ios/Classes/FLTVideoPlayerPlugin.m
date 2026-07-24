@@ -51,6 +51,8 @@
 - (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
 @property(nonatomic, strong) AVPictureInPictureController *pipController;
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
+/// Held during PiP restore to defer completionHandler until Dart sends source rect.
+@property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
 @end
 
 /// PiP 復帰時に PiP window の縮小アニメを覆い隠す黒オーバーレイを識別するタグ。
@@ -428,6 +430,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (!_pipPlayerLayer) {
       _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
       _pipPlayerLayer.frame = CGRectZero;
+      // resizeAspect (デフォルト) だとアスペクト比が合わない場合に黒帯が出るため、
+      // クロップして余白を出さない resizeAspectFill にする。
+      _pipPlayerLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
       UIWindow *keyWindow = nil;
       for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -452,6 +457,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)tearDownPictureInPicture {
+  // Release any pending completionHandler to prevent leaks during dispose.
+  self.pipRestoreCompletionHandler = nil;
+
   if (_pipController) {
     if ([_pipController isPictureInPictureActive]) {
       [_pipController stopPictureInPicture];
@@ -528,22 +536,79 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 }
 
+/// PiP restore 時に使う keyWindow を探す共通ヘルパー。
+- (nullable UIWindow *)flt_keyWindowForPipRestore {
+  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+        if (window.isKeyWindow) {
+          return window;
+        }
+      }
+    }
+  }
+  return nil;
+}
+
+/// rect が有限値で、かつ画面と重なりを持つか(=完全に画面外ではないか)を判定する。
+- (BOOL)isRectOnScreenForPipRestore:(CGRect)rect {
+  if (CGRectIsNull(rect) || CGRectIsInfinite(rect)) {
+    return NO;
+  }
+  if (!isfinite(rect.origin.x) || !isfinite(rect.origin.y) ||
+      !isfinite(rect.size.width) || !isfinite(rect.size.height)) {
+    return NO;
+  }
+  if (rect.size.width <= 0 || rect.size.height <= 0) {
+    return NO;
+  }
+  return CGRectIntersectsRect(rect, [UIScreen mainScreen].bounds);
+}
+
+/// source rect が使えない(Dart からの応答が間に合わない・無効・画面外)場合のフォールバック。
+/// 実際の動画位置へスケールさせる代わりに、黒オーバーレイでフェードして隠す
+/// (source-rect 復帰アニメーション導入前の挙動)。
+- (void)completePipRestoreWithBlackFadeFallback {
+  UIWindow *keyWindow = [self flt_keyWindowForPipRestore];
+  if (keyWindow) {
+    UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
+    overlay.backgroundColor = [UIColor colorWithWhite:0.04 alpha:1.0];
+    overlay.tag = kPipRestoreOverlayTag;
+    overlay.alpha = 0;
+    [keyWindow.rootViewController.view addSubview:overlay];
+    [UIView animateWithDuration:0.05 animations:^{
+      overlay.alpha = 1.0;
+    }];
+  }
+
+  // 縮小先を無効化しておく。
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  _pipPlayerLayer.frame = CGRectZero;
+  [CATransaction commit];
+
+  if (self.pipRestoreCompletionHandler) {
+    self.pipRestoreCompletionHandler(YES);
+    self.pipRestoreCompletionHandler = nil;
+  }
+
+  // completionHandler 直後に hidden にすることで縮小アニメーション自体を視覚的に消す。
+  _pipPlayerLayer.hidden = YES;
+}
+
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  // Clean up completionHandler if it wasn't called (e.g. user tapped close button).
+  self.pipRestoreCompletionHandler = nil;
+
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStopped"});
   }
   [self updatePlayingState];
 
-  // restoreUserInterface で追加した黒オーバーレイを 0.3s フェードアウトで消す。
-  UIWindow *keyWindow = nil;
-  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-    if ([scene isKindOfClass:[UIWindowScene class]]) {
-      for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-        if (window.isKeyWindow) { keyWindow = window; break; }
-      }
-      if (keyWindow) break;
-    }
-  }
+  // completePipRestoreWithBlackFadeFallback で追加した黒オーバーレイを
+  // 0.28s フェードアウトで消す。source rect が有効だった場合は overlay 自体が
+  // 無いので viewWithTag: が nil を返し、何もしない。
+  UIWindow *keyWindow = [self flt_keyWindowForPipRestore];
   if (keyWindow) {
     UIView *overlay = [keyWindow.rootViewController.view viewWithTag:kPipRestoreOverlayTag];
     if (overlay) {
@@ -555,8 +620,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   }
 
-  // Reset frame and unhide the layer. The layer was hidden in
-  // restoreUserInterface to make PiP window content invisible during dismiss animation.
+  // Reset frame (and unhide, in case the black-fade fallback path hid it).
+  // source rect が有効だった場合、_pipPlayerLayer はここまで実際の動画位置に
+  // 表示されたままになっている(Flutter テクスチャが追いつくまでの黒フラッシュ回避)。
+  // ここで一気に 1x1/zero へ縮小することで、Flutter 側の描画に切り替わる。
   if (@available(iOS 14.2, *)) {
     BOOL needsAutoPip = _pipController.canStartPictureInPictureAutomaticallyFromInline;
     CGRect targetFrame = needsAutoPip ? CGRectMake(0, 0, 1, 1) : CGRectZero;
@@ -573,41 +640,50 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
     restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
-  // 黒オーバーレイで PiP window の縮小アニメを覆い隠す。
-  // iOS の PiP window は現在の window 内の view として描画されるため、
-  // keyWindow.rootViewController.view の subview として貼れば PiP layer より上に来る。
-  UIWindow *keyWindow = nil;
-  for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-    if ([scene isKindOfClass:[UIWindowScene class]]) {
-      for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-        if (window.isKeyWindow) { keyWindow = window; break; }
-      }
-      if (keyWindow) break;
-    }
-  }
-  if (keyWindow) {
-    UIView *overlay = [[UIView alloc] initWithFrame:keyWindow.bounds];
-    overlay.backgroundColor = [UIColor colorWithWhite:0.04 alpha:1.0];
-    overlay.tag = kPipRestoreOverlayTag;
-    overlay.alpha = 0;
-    [keyWindow.rootViewController.view addSubview:overlay];
-    [UIView animateWithDuration:0.05 animations:^{
-      overlay.alpha = 1.0;
-    }];
+  // Hold the completionHandler and wait for Dart to send the video source rect.
+  // This allows PiP to animate back to the correct video position.
+  self.pipRestoreCompletionHandler = completionHandler;
+
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipRestoreUserInterface"});
   }
 
-  // AVPlayerLayer の frame をゼロにセットしておく（縮小先を無効化）。
+  // Timeout: if Dart doesn't respond within 0.5s, fall back to the black fade.
+  __weak typeof(self) weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf) return;
+    if (strongSelf.pipRestoreCompletionHandler) {
+      [strongSelf completePipRestoreWithBlackFadeFallback];
+    }
+  });
+}
+
+- (void)completePipRestoreWithSourceRect:(CGRect)rect {
+  if (!self.pipRestoreCompletionHandler) {
+    return;
+  }
+
+  if (![self isRectOnScreenForPipRestore:rect]) {
+    // rect が画面外・不正値の場合はスケールアニメーションを試みず黒フェードで隠す。
+    [self completePipRestoreWithBlackFadeFallback];
+    return;
+  }
+
+  // Set the frame to the video position so iOS animates the PiP window there.
   [CATransaction begin];
   [CATransaction setDisableActions:YES];
-  _pipPlayerLayer.frame = CGRectZero;
+  _pipPlayerLayer.frame = rect;
   [CATransaction commit];
 
-  completionHandler(YES);
+  self.pipRestoreCompletionHandler(YES);
+  self.pipRestoreCompletionHandler = nil;
 
-  // completionHandler 直後に AVPlayerLayer を即座に hidden にすることで、
-  // iOS が PiP ウィンドウに流し込むコンテンツを空にし、
-  // 縮小アニメーション自体を視覚的に消す。遅延を作らず同期的に反映する。
-  _pipPlayerLayer.hidden = YES;
+  // ここでは hidden にしない。rect は実際の Flutter 動画ウィジェットの画面位置なので、
+  // _pipPlayerLayer をそのまま表示し続けることで、Flutter 側のテクスチャがまだ
+  // 追いついていない一瞬を実動画で埋める(黒フラッシュを回避する)。
+  // didStopPictureInPicture で frame を縮小するタイミングまで表示したままにする。
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
@@ -959,6 +1035,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   // setup / teardown は Player レベルの setAutoPictureInPicture: に委譲する
   [player setAutoPictureInPicture:input.value.boolValue];
+}
+
+- (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input
+                                   error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  CGRect rect = CGRectMake(
+      input.x.doubleValue,
+      input.y.doubleValue,
+      input.width.doubleValue,
+      input.height.doubleValue);
+  [player completePipRestoreWithSourceRect:rect];
 }
 
 @end

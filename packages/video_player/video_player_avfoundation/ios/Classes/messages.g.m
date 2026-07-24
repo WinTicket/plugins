@@ -82,6 +82,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 + (FLTPipStatusMessage *)fromMap:(NSDictionary *)dict;
 - (NSDictionary *)toMap;
 @end
+@interface FLTPipSourceRectMessage ()
++ (FLTPipSourceRectMessage *)fromMap:(NSDictionary *)dict;
+- (NSDictionary *)toMap;
+@end
 
 @implementation FLTTextureMessage
 + (instancetype)makeWithTextureId:(NSNumber *)textureId {
@@ -360,6 +364,39 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 }
 @end
 
+@implementation FLTPipSourceRectMessage
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    x:(NSNumber *)x
+    y:(NSNumber *)y
+    width:(NSNumber *)width
+    height:(NSNumber *)height {
+  FLTPipSourceRectMessage* pigeonResult = [[FLTPipSourceRectMessage alloc] init];
+  pigeonResult.textureId = textureId;
+  pigeonResult.x = x;
+  pigeonResult.y = y;
+  pigeonResult.width = width;
+  pigeonResult.height = height;
+  return pigeonResult;
+}
++ (FLTPipSourceRectMessage *)fromMap:(NSDictionary *)dict {
+  FLTPipSourceRectMessage *pigeonResult = [[FLTPipSourceRectMessage alloc] init];
+  pigeonResult.textureId = GetNullableObject(dict, @"textureId");
+  NSAssert(pigeonResult.textureId != nil, @"");
+  pigeonResult.x = GetNullableObject(dict, @"x");
+  NSAssert(pigeonResult.x != nil, @"");
+  pigeonResult.y = GetNullableObject(dict, @"y");
+  NSAssert(pigeonResult.y != nil, @"");
+  pigeonResult.width = GetNullableObject(dict, @"width");
+  NSAssert(pigeonResult.width != nil, @"");
+  pigeonResult.height = GetNullableObject(dict, @"height");
+  NSAssert(pigeonResult.height != nil, @"");
+  return pigeonResult;
+}
+- (NSDictionary *)toMap {
+  return [NSDictionary dictionaryWithObjectsAndKeys:(self.textureId ? self.textureId : [NSNull null]), @"textureId", (self.x ? self.x : [NSNull null]), @"x", (self.y ? self.y : [NSNull null]), @"y", (self.width ? self.width : [NSNull null]), @"width", (self.height ? self.height : [NSNull null]), @"height", nil];
+}
+@end
+
 @interface FLTAVFoundationVideoPlayerApiCodecReader : FlutterStandardReader
 @end
 @implementation FLTAVFoundationVideoPlayerApiCodecReader
@@ -404,6 +441,9 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
 
     case 140:
       return [FLTPipStatusMessage fromMap:[self readValue]];
+
+    case 141:
+      return [FLTPipSourceRectMessage fromMap:[self readValue]];
 
     default:
       return [super readValueOfType:type];
@@ -467,6 +507,10 @@ static id GetNullableObjectAtIndex(NSArray* array, NSInteger key) {
   } else
   if ([value isKindOfClass:[FLTPipStatusMessage class]]) {
     [self writeByte:140];
+    [self writeValue:[value toMap]];
+  } else
+  if ([value isKindOfClass:[FLTPipSourceRectMessage class]]) {
+    [self writeByte:141];
     [self writeValue:[value toMap]];
   } else
 {
@@ -849,6 +893,26 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
         FLTPipStatusMessage *arg_input = GetNullableObjectAtIndex(args, 0);
         FlutterError *error;
         [api setAutoPictureInPicture:arg_input error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(completePipRestoreWithSourceRect:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(completePipRestoreWithSourceRect:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTPipSourceRectMessage *arg_input = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api completePipRestoreWithSourceRect:arg_input error:&error];
         callback(wrapResult(nil, error));
       }];
     }
