@@ -465,7 +465,12 @@ class _VideoPlayerState extends State<VideoPlayer> {
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
-    oldWidget.controller.pipSourceRectProvider = null;
+    // Only clear the provider if it's still ours: another VideoPlayer
+    // instance sharing the same controller may have already re-registered
+    // its own provider, and we must not clobber it.
+    if (identical(oldWidget.controller.pipSourceRectProvider, _getSourceRect)) {
+      oldWidget.controller.pipSourceRectProvider = null;
+    }
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
     widget.controller.pipSourceRectProvider = _getSourceRect;
@@ -475,7 +480,11 @@ class _VideoPlayerState extends State<VideoPlayer> {
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
-    widget.controller.pipSourceRectProvider = null;
+    // See the comment in didUpdateWidget: don't clear another instance's
+    // provider registration.
+    if (identical(widget.controller.pipSourceRectProvider, _getSourceRect)) {
+      widget.controller.pipSourceRectProvider = null;
+    }
   }
 
   @override
