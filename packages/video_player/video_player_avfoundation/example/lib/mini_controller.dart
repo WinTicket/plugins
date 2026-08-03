@@ -313,6 +313,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
           notifyListeners();
           break;
+        case VideoEventType.isPlayingStateUpdate:
         case VideoEventType.unknown:
           break;
       }

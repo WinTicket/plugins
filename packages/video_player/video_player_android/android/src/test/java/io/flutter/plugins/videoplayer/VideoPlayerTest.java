@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
@@ -34,6 +35,7 @@ public class VideoPlayerTest {
   private DefaultTrackSelector trackSelector;
 
   @Captor private ArgumentCaptor<HashMap<String, Object>> eventCaptor;
+  @Captor private ArgumentCaptor<Player.Listener> listenerCaptor;
 
   @Before
   public void before() {
@@ -161,5 +163,24 @@ public class VideoPlayerTest {
     assertEquals(event.get("width"), 100);
     assertEquals(event.get("height"), 200);
     assertEquals(event.get("rotationCorrection"), 180);
+  }
+
+  @Test
+  public void isPlayingChangeSendsExpectedEvent() {
+    new VideoPlayer(
+        fakeExoPlayer,
+        fakeEventChannel,
+        fakeSurfaceTextureEntry,
+        fakeVideoPlayerOptions,
+        fakeEventSink,
+        trackSelector);
+
+    verify(fakeExoPlayer).addListener(listenerCaptor.capture());
+    listenerCaptor.getValue().onIsPlayingChanged(false);
+
+    verify(fakeEventSink).success(eventCaptor.capture());
+    HashMap<String, Object> event = eventCaptor.getValue();
+    assertEquals(event.get("event"), "isPlayingStateUpdate");
+    assertEquals(event.get("isPlaying"), false);
   }
 }

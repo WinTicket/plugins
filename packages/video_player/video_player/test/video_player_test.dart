@@ -899,6 +899,33 @@ void main() {
         await tester.pumpAndSettle();
         expect(controller.value.isBuffering, isFalse);
       });
+
+      test('native playback state updates isPlaying', () async {
+        final VideoPlayerController controller = VideoPlayerController.network(
+          'https://127.0.0.1',
+        );
+        await controller.initialize();
+        final StreamController<VideoEvent> fakeVideoEventStream =
+            fakeVideoPlayerPlatform.streams[controller.textureId]!;
+
+        controller.value = controller.value.copyWith(isPlaying: true);
+        fakeVideoEventStream.add(VideoEvent(
+          eventType: VideoEventType.isPlayingStateUpdate,
+          isPlaying: false,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.isPlaying, isFalse);
+
+        fakeVideoEventStream.add(VideoEvent(
+          eventType: VideoEventType.isPlayingStateUpdate,
+          isPlaying: true,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.isPlaying, isTrue);
+        await controller.dispose();
+      });
     });
   });
 

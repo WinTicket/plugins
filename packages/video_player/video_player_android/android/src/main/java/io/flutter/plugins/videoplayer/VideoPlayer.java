@@ -272,6 +272,14 @@ final class VideoPlayer {
           }
 
           @Override
+          public void onIsPlayingChanged(boolean isPlaying) {
+            Map<String, Object> event = new HashMap<>();
+            event.put("event", "isPlayingStateUpdate");
+            event.put("isPlaying", isPlaying);
+            eventSink.success(event);
+          }
+
+          @Override
           public void onPlayerError(final PlaybackException error) {
             setBuffering(false);
             if (eventSink != null) {

@@ -307,6 +307,7 @@ class VideoEvent {
     this.size,
     this.rotationCorrection,
     this.buffered,
+    this.isPlaying,
     this.isAutoPipEnabled,
   });
 
@@ -333,6 +334,11 @@ class VideoEvent {
   /// Only used if [eventType] is [VideoEventType.bufferingUpdate].
   final List<DurationRange>? buffered;
 
+  /// Whether the video is currently playing.
+  ///
+  /// Only used if [eventType] is [VideoEventType.isPlayingStateUpdate].
+  final bool? isPlaying;
+
   /// Whether automatic Picture-in-Picture is enabled.
   ///
   /// Only used if [eventType] is [VideoEventType.autoPipChanged].
@@ -348,6 +354,7 @@ class VideoEvent {
             size == other.size &&
             rotationCorrection == other.rotationCorrection &&
             listEquals(buffered, other.buffered) &&
+            isPlaying == other.isPlaying &&
             isAutoPipEnabled == other.isAutoPipEnabled;
   }
 
@@ -358,6 +365,7 @@ class VideoEvent {
         size,
         rotationCorrection,
         buffered,
+        isPlaying,
         isAutoPipEnabled,
       );
 }
@@ -381,6 +389,12 @@ enum VideoEventType {
 
   /// The video stopped to buffer.
   bufferingEnd,
+
+  /// The playback state of the video has changed.
+  ///
+  /// This event is fired when the video starts or pauses due to user actions,
+  /// phone calls, or other app media such as music players.
+  isPlayingStateUpdate,
 
   /// An unknown event has been received.
   unknown,

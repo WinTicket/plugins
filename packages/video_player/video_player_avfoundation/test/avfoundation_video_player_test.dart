@@ -127,6 +127,11 @@ class _ApiLogger implements TestHostVideoPlayerApi {
     log.add('stopPictureInPicture');
     textureMessage = arg;
   }
+
+  @override
+  void setAutoPictureInPicture(PipStatusMessage arg) {
+    log.add('setAutoPictureInPicture');
+  }
 }
 
 void main() {
@@ -351,6 +356,17 @@ void main() {
                     'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'isPlayingStateUpdate',
+                      'isPlaying': false,
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'pipStarted',
                     }),
                     (ByteData? data) {});
@@ -396,6 +412,10 @@ void main() {
                 ]),
             VideoEvent(eventType: VideoEventType.bufferingStart),
             VideoEvent(eventType: VideoEventType.bufferingEnd),
+            VideoEvent(
+              eventType: VideoEventType.isPlayingStateUpdate,
+              isPlaying: false,
+            ),
             VideoEvent(eventType: VideoEventType.pipStarted),
             VideoEvent(eventType: VideoEventType.pipStopped),
           ]));

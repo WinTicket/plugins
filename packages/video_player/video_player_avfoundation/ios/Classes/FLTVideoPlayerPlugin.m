@@ -65,6 +65,7 @@ static void *durationContext = &durationContext;
 static void *playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
 static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
+static void *rateContext = &rateContext;
 
 @implementation FLTVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset frameUpdater:(FLTFrameUpdater *)frameUpdater {
@@ -73,6 +74,10 @@ static void *playbackBufferFullContext = &playbackBufferFullContext;
 }
 
 - (void)addObservers:(AVPlayerItem *)item {
+  [_player addObserver:self
+            forKeyPath:@"rate"
+               options:NSKeyValueObservingOptionNew
+               context:rateContext];
   [item addObserver:self
          forKeyPath:@"loadedTimeRanges"
             options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
@@ -311,6 +316,14 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   } else if (context == playbackBufferFullContext) {
     if (_eventSink != nil) {
       _eventSink(@{@"event" : @"bufferingEnd"});
+    }
+  } else if (context == rateContext) {
+    AVPlayer *player = (AVPlayer *)object;
+    if (_eventSink != nil) {
+      _eventSink(@{
+        @"event" : @"isPlayingStateUpdate",
+        @"isPlaying" : @(player.rate > 0)
+      });
     }
   }
 }
@@ -809,6 +822,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [currentItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
   [currentItem removeObserver:self forKeyPath:@"playbackBufferEmpty"];
   [currentItem removeObserver:self forKeyPath:@"playbackBufferFull"];
+  [self.player removeObserver:self forKeyPath:@"rate"];
 
   [self.player replaceCurrentItemWithPlayerItem:nil];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
