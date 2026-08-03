@@ -184,9 +184,40 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// PiP から出たことを示す。
   void Function(bool isActive)? onPipActiveChanged;
 
-  /// Callback that returns the screen rect of the video Texture widget.
-  /// Set automatically by [_VideoPlayerState].
-  Rect? Function()? pipSourceRectProvider;
+  /// Providers that return the screen rect of a [VideoPlayer] widget
+  /// currently rendering this controller's video, for the PiP restore
+  /// animation. Registered automatically by [VideoPlayer].
+  ///
+  /// A single controller can be rendered by more than one [VideoPlayer] at
+  /// once (e.g. a thumbnail and a fullscreen view sharing the same
+  /// controller). Providers are kept in registration order; the most
+  /// recently registered one is tried first, since it's usually the widget
+  /// the user is currently looking at.
+  final List<Rect? Function()> _pipSourceRectProviders = <Rect? Function()>[];
+
+  /// Registers a callback that returns the on-screen rect of a widget
+  /// rendering this controller's video. Called automatically by
+  /// [VideoPlayer]; app code shouldn't need to call this directly.
+  void addPipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+    _pipSourceRectProviders.add(provider);
+  }
+
+  /// Unregisters a provider added via [addPipSourceRectProvider].
+  void removePipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+  }
+
+  Rect? _resolvePipSourceRect() {
+    for (final Rect? Function() provider
+        in _pipSourceRectProviders.reversed) {
+      final Rect? rect = provider();
+      if (rect != null) {
+        return rect;
+      }
+    }
+    return null;
+  }
 
   Timer? _timer;
   Completer<void>? _creatingCompleter;
@@ -312,7 +343,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
       await _eventSubscription?.cancel();
       await _platform.dispose(_textureId);
     }
-    pipSourceRectProvider = null;
+    _pipSourceRectProviders.clear();
     super.dispose();
   }
 
@@ -396,7 +427,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   }
 
   void _completePipRestore() {
-    final Rect? rect = pipSourceRectProvider?.call();
+    final Rect? rect = _resolvePipSourceRect();
     if (rect != null) {
       _platform.completePipRestoreWithSourceRect(
         _textureId,
@@ -458,33 +489,24 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
-    // Only clear the provider if it's still ours: another VideoPlayer
-    // instance sharing the same controller may have already re-registered
-    // its own provider, and we must not clobber it.
-    if (identical(oldWidget.controller.pipSourceRectProvider, _getSourceRect)) {
-      oldWidget.controller.pipSourceRectProvider = null;
-    }
+    oldWidget.controller.removePipSourceRectProvider(_getSourceRect);
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
-    widget.controller.pipSourceRectProvider = _getSourceRect;
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
-    // See the comment in didUpdateWidget: don't clear another instance's
-    // provider registration.
-    if (identical(widget.controller.pipSourceRectProvider, _getSourceRect)) {
-      widget.controller.pipSourceRectProvider = null;
-    }
+    widget.controller.removePipSourceRectProvider(_getSourceRect);
   }
 
   @override
