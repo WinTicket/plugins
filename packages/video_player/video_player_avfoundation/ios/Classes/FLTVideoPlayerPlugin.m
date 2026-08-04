@@ -443,9 +443,6 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (!_pipPlayerLayer) {
       _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
       _pipPlayerLayer.frame = CGRectZero;
-      // resizeAspect (デフォルト) だとアスペクト比が合わない場合に黒帯が出るため、
-      // クロップして余白を出さない resizeAspectFill にする。
-      _pipPlayerLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
       UIWindow *keyWindow = nil;
       for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -684,11 +681,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     return;
   }
 
-  // Set the frame to the video position so iOS animates the PiP window there.
-  [CATransaction begin];
-  [CATransaction setDisableActions:YES];
   _pipPlayerLayer.frame = rect;
-  [CATransaction commit];
 
   self.pipRestoreCompletionHandler(YES);
   self.pipRestoreCompletionHandler = nil;
