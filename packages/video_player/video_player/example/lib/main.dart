@@ -33,7 +33,7 @@ class _AppState extends State<_App> {
     _remoteController = VideoPlayerController.network(
       'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
       closedCaptionFile: _loadCaptions(),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      // videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
     );
     _assetController = VideoPlayerController.asset('assets/Butterfly-209.mp4');
 
@@ -310,6 +310,7 @@ class _BumbleBeeRemoteVideo extends StatelessWidget {
               ),
             ),
           ),
+          Text(controller.value.isPlaying ? 'Playing' : 'Paused'),
           _PipControls(controller: controller),
         ],
       ),

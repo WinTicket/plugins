@@ -209,8 +209,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   }
 
   Rect? _resolvePipSourceRect() {
-    for (final Rect? Function() provider
-        in _pipSourceRectProviders.reversed) {
+    for (final Rect? Function() provider in _pipSourceRectProviders.reversed) {
       final Rect? rect = provider();
       if (rect != null) {
         return rect;
@@ -314,6 +313,8 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           notifyListeners();
           break;
         case VideoEventType.isPlayingStateUpdate:
+          value = value.copyWith(isPlaying: event.isPlaying ?? false);
+          break;
         case VideoEventType.unknown:
           break;
       }

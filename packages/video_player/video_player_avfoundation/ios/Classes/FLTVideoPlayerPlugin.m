@@ -322,7 +322,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (_eventSink != nil) {
       _eventSink(@{
         @"event" : @"isPlayingStateUpdate",
-        @"isPlaying" : @(player.rate > 0)
+        @"isPlaying" : player.rate > 0 ? @YES : @NO
       });
     }
   }

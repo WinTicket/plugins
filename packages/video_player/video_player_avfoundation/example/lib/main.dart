@@ -150,6 +150,7 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
               ),
             ),
           ),
+          Text(_controller.value.isPlaying ? 'Playing' : 'Paused'),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: ElevatedButton.icon(
