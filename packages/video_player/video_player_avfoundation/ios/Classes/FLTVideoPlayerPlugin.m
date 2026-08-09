@@ -804,6 +804,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 /// is useful for the case where the Engine is in the process of deconstruction
 /// so the channel is going to die or is already dead.
 - (void)disposeSansEventChannel {
+  // hot restart 等で dispose が二重に呼ばれることがあるため、初回以降は no-op にする
+  // (公式実装の FVPVideoPlayer.m と同じ対策)。
+  if (_disposed) {
+    return;
+  }
   _disposed = YES;
   [self tearDownPictureInPicture];
   [_displayLink invalidate];
