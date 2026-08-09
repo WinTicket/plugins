@@ -560,8 +560,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return nil;
 }
 
-/// rect が有限値で、かつ画面と重なりを持つか(=完全に画面外ではないか)を判定する。
-- (BOOL)isRectOnScreenForPipRestore:(CGRect)rect {
+/// rect がレイヤーに設定可能な有限値かを判定する。
+- (BOOL)isValidPipRestoreRect:(CGRect)rect {
   if (CGRectIsNull(rect) || CGRectIsInfinite(rect)) {
     return NO;
   }
@@ -572,10 +572,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   if (rect.size.width <= 0 || rect.size.height <= 0) {
     return NO;
   }
-  return CGRectIntersectsRect(rect, [UIScreen mainScreen].bounds);
+  return YES;
 }
 
-/// source rect が使えない(Dart からの応答が間に合わない・無効・画面外)場合のフォールバック。
+/// source rect が使えない(Dart からの応答が間に合わない・不正値)場合のフォールバック。
 /// 実際の動画位置へスケールさせる代わりに、黒オーバーレイでフェードして隠す
 /// (source-rect 復帰アニメーション導入前の挙動)。
 - (void)completePipRestoreWithBlackFadeFallback {
@@ -675,8 +675,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     return;
   }
 
-  if (![self isRectOnScreenForPipRestore:rect]) {
-    // rect が画面外・不正値の場合はスケールアニメーションを試みず黒フェードで隠す。
+  if (![self isValidPipRestoreRect:rect]) {
+    // 不正値の場合はレイヤーに設定せず黒フェードで隠す。
     [self completePipRestoreWithBlackFadeFallback];
     return;
   }
