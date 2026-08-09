@@ -34,6 +34,8 @@ class _AppState extends State<_App> {
       'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
       closedCaptionFile: _loadCaptions(),
       // videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      // iOSのPicture-in-Pictureでスキップ(早送り/巻き戻し)ボタンを隠す場合はtrueにする。
+      videoPlayerOptions: VideoPlayerOptions(requiresLinearPlayback: true),
     );
     _assetController = VideoPlayerController.asset('assets/Butterfly-209.mp4');
 
@@ -312,6 +314,11 @@ class _BumbleBeeRemoteVideo extends StatelessWidget {
           ),
           Text(controller.value.isPlaying ? 'Playing' : 'Paused'),
           _PipControls(controller: controller),
+          for (final int i in List<int>.generate(10, (int index) => index))
+            Container(
+              height: 100,
+              color: i.isEven ? Colors.amberAccent : Colors.blueAccent,
+            ),
         ],
       ),
     );
@@ -328,6 +335,10 @@ class _PipControls extends StatefulWidget {
 }
 
 class _PipControlsState extends State<_PipControls> {
+  // requiresLinearPlaybackはネイティブ側からの読み戻しイベントが無いため、
+  // UI側でローカルに状態を保持する。初期値はVideoPlayerOptionsで渡した値と揃える。
+  bool _requiresLinearPlayback = true;
+
   @override
   void initState() {
     super.initState();
@@ -366,6 +377,18 @@ class _PipControlsState extends State<_PipControls> {
                 : null,
             icon: const Icon(Icons.fullscreen_exit),
             label: const Text('Stop PiP'),
+          ),
+          SwitchListTile(
+            title: const Text('Require Linear Playback'),
+            subtitle: const Text('PiPウィンドウのスキップボタンを隠す(iOSのみ)'),
+            value: _requiresLinearPlayback,
+            onChanged: (bool requiresLinearPlayback) {
+              setState(() {
+                _requiresLinearPlayback = requiresLinearPlayback;
+              });
+              widget.controller
+                  .setRequiresLinearPlayback(requiresLinearPlayback);
+            },
           ),
           SwitchListTile(
             title: const Text('Auto PiP'),

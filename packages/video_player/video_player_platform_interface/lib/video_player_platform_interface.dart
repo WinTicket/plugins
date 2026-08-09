@@ -148,6 +148,13 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
         'completePipRestoreWithSourceRect() has not been implemented.');
   }
 
+  /// Sets whether Picture-in-Picture requires linear playback.
+  ///
+  /// When `true`, the PiP window hides the skip forward/backward buttons.
+  /// iOS 14.2+ only; silently ignored on other platforms.
+  Future<void> setRequiresLinearPlayback(
+      int textureId, bool requiresLinearPlayback) async {}
+
 }
 
 /// バッファを調整するための各パラメーター
@@ -489,6 +496,7 @@ class VideoPlayerOptions {
     this.mixWithOthers = false,
     this.allowBackgroundPlayback = false,
     this.buffer,
+    this.requiresLinearPlayback = false,
   });
 
   /// Set this to true to keep playing video in background, when app goes in background.
@@ -505,4 +513,11 @@ class VideoPlayerOptions {
   /// AndroidとiOSでバッファの値を調整するためにセットします
   /// nullの場合は各プラットフォームのPlayerのデフォルトの値が使われます
   final Buffer? buffer;
+
+  /// Set this to true to hide the skip forward/backward buttons in the
+  /// Picture-in-Picture window. The default value is false.
+  ///
+  /// Note: This option is only supported on iOS 14.2+ and is silently
+  /// ignored on other platforms.
+  final bool requiresLinearPlayback;
 }

@@ -53,6 +53,10 @@
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
 /// Held during PiP restore to defer completionHandler until Dart sends source rect.
 @property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
+/// AVPictureInPictureController.requiresLinearPlayback に設定したい値。
+/// setter が呼ばれた時点で _pipController が未生成の場合があるため保持しておき、
+/// setupPictureInPicture 実行時、もしくは controller が既に存在する場合は即時に反映する。
+@property(nonatomic) BOOL requiresLinearPlayback;
 @end
 
 /// PiP 復帰時に PiP window の縮小アニメを覆い隠す黒オーバーレイを識別するタグ。
@@ -461,7 +465,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       }
     }
     _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
-    _pipController.requiresLinearPlayback = NO;
+    _pipController.requiresLinearPlayback = _requiresLinearPlayback;
     _pipController.delegate = self;
   }
 }
@@ -522,6 +526,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
       @"event" : @"autoPipChanged",
       @"enabled" : @(enabled)
     });
+  }
+}
+
+- (void)setRequiresLinearPlayback:(BOOL)requiresLinearPlayback {
+  _requiresLinearPlayback = requiresLinearPlayback;
+  if (_pipController) {
+    // Controller が既に存在する場合は即時反映する。まだ存在しない場合は
+    // setupPictureInPicture 実行時に _requiresLinearPlayback の値が使われる。
+    _pipController.requiresLinearPlayback = requiresLinearPlayback;
   }
 }
 
@@ -1047,6 +1060,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
   // setup / teardown は Player レベルの setAutoPictureInPicture: に委譲する
   [player setAutoPictureInPicture:input.value.boolValue];
+}
+
+- (void)setRequiresLinearPlayback:(FLTPipStatusMessage *)input
+                             error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player setRequiresLinearPlayback:input.value.boolValue];
 }
 
 - (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input

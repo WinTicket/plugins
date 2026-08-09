@@ -142,6 +142,8 @@ abstract class AVFoundationVideoPlayerApi {
   void stopPictureInPicture(TextureMessage msg);
   @ObjCSelector('setAutoPictureInPicture:')
   void setAutoPictureInPicture(PipStatusMessage msg);
+  @ObjCSelector('setRequiresLinearPlayback:')
+  void setRequiresLinearPlayback(PipStatusMessage msg);
   @ObjCSelector('completePipRestoreWithSourceRect:')
   void completePipRestoreWithSourceRect(PipSourceRectMessage msg);
 }

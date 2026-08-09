@@ -189,6 +189,7 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (nullable FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)stopPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
+- (void)setRequiresLinearPlayback:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 @end
 

@@ -232,6 +232,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
+  Future<void> setRequiresLinearPlayback(
+      int textureId, bool requiresLinearPlayback) {
+    return _api.setRequiresLinearPlayback(
+        PipStatusMessage(textureId: textureId, value: requiresLinearPlayback));
+  }
+
+  @override
   Future<void> completePipRestoreWithSourceRect(
       int textureId, double x, double y, double width, double height) {
     return _api.completePipRestoreWithSourceRect(PipSourceRectMessage(

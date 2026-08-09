@@ -903,6 +903,26 @@ void FLTAVFoundationVideoPlayerApiSetup(id<FlutterBinaryMessenger> binaryMesseng
   {
     FlutterBasicMessageChannel *channel =
       [[FlutterBasicMessageChannel alloc]
+        initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.setRequiresLinearPlayback"
+        binaryMessenger:binaryMessenger
+        codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(setRequiresLinearPlayback:error:)], @"FLTAVFoundationVideoPlayerApi api (%@) doesn't respond to @selector(setRequiresLinearPlayback:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        FLTPipStatusMessage *arg_input = GetNullableObjectAtIndex(args, 0);
+        FlutterError *error;
+        [api setRequiresLinearPlayback:arg_input error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [[FlutterBasicMessageChannel alloc]
         initWithName:@"dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect"
         binaryMessenger:binaryMessenger
         codec:FLTAVFoundationVideoPlayerApiGetCodec()        ];

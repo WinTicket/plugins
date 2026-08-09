@@ -403,6 +403,15 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       await _videoPlayerPlatform.setBuffer(_textureId, bufferOption);
     }
 
+    // requiresLinearPlaybackはiOSのみ対応。他プラットフォームでは無視される。
+    final bool requiresLinearPlayback =
+        videoPlayerOptions?.requiresLinearPlayback ?? false;
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        requiresLinearPlayback) {
+      await _videoPlayerPlatform.setRequiresLinearPlayback(
+          _textureId, requiresLinearPlayback);
+    }
+
     _creatingCompleter!.complete(null);
     final Completer<void> initializingCompleter = Completer<void>();
 
@@ -760,6 +769,19 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       return;
     }
     await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
+  }
+
+  /// Sets whether Picture-in-Picture requires linear playback at runtime.
+  ///
+  /// When `true`, the PiP window hides the skip forward/backward buttons.
+  /// iOS 14.2+ only; silently ignored on other platforms. Can be called at
+  /// any time, including while PiP is already active.
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.setRequiresLinearPlayback(
+        _textureId, requiresLinearPlayback);
   }
 
   /// Providers that return the screen rect of a [VideoPlayer] widget
