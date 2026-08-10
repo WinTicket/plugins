@@ -20,4 +20,11 @@ void main() {
       expect(options.mixWithOthers, false);
     },
   );
+  test(
+    'VideoPlayerOptions requiresLinearPlayback defaults to false',
+    () {
+      final VideoPlayerOptions options = VideoPlayerOptions();
+      expect(options.requiresLinearPlayback, false);
+    },
+  );
 }

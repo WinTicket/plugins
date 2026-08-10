@@ -73,6 +73,9 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<void> setAutoPictureInPicture(bool enabled) async {}
 
   @override
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {}
+
+  @override
   Rect? Function()? pipSourceRectProvider;
 
   @override
@@ -1123,6 +1126,7 @@ void main() {
       await controller.startPictureInPicture();
       await controller.stopPictureInPicture();
       await controller.setAutoPictureInPicture(true);
+      await controller.setRequiresLinearPlayback(true);
 
       expect(await controller.isPictureInPictureSupported(), isFalse);
       expect(await controller.isPictureInPictureActive(), isFalse);

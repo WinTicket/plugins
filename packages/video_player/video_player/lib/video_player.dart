@@ -731,6 +731,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// This API is currently a no-op.
   Future<void> setAutoPictureInPicture(bool enabled) async {}
 
+  /// Sets whether Picture-in-Picture requires linear playback at runtime.
+  ///
+  /// This API is currently a no-op.
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {}
+
   /// Callback that returns the screen rect of the video Texture widget.
   ///
   /// This API is currently unused.
