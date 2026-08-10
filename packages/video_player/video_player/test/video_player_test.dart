@@ -99,6 +99,9 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   Future<void> setAutoPictureInPicture(bool enabled) async {}
 
   @override
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {}
+
+  @override
   void Function(bool isActive)? onPipActiveChanged;
 
   final List<_FakePipSourceRectRegistration> _pipSourceRectProviders =
