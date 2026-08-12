@@ -68,6 +68,11 @@ static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
 static void *rateContext = &rateContext;
 static const CGFloat kPipRestoreVisibleEdge = 2.0;
+/// PiP 復帰アニメーション中に _pipPlayerLayer へ適用する角丸の半径。
+/// Dart 側で動画フレームに角丸 (ClipRRect 等) を付けている場合、
+/// 復帰アニメーションの最後で Flutter の Texture に切り替わった際に
+/// 角の丸みが変わって見えないよう、同じ値を揃えること。
+static const CGFloat kPipCornerRadius = 16.0;
 
 @implementation FLTVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset frameUpdater:(FLTFrameUpdater *)frameUpdater {
@@ -445,6 +450,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (!_pipPlayerLayer) {
       _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
       _pipPlayerLayer.frame = CGRectZero;
+      _pipPlayerLayer.cornerRadius = kPipCornerRadius;
+      _pipPlayerLayer.masksToBounds = YES;
+      if (@available(iOS 13.0, *)) {
+        _pipPlayerLayer.cornerCurve = kCACornerCurveContinuous;
+      }
       UIWindow *keyWindow = nil;
       for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
