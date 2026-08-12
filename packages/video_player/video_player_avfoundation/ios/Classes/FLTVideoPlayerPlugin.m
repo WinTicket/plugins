@@ -679,8 +679,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 
   CGRect targetRect = [self rectByKeepingPipRestoreVisible:rect];
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
   _pipPlayerLayer.frame = targetRect;
   _pipPlayerLayer.hidden = NO;
+  [CATransaction commit];
 
   void (^completionHandler)(BOOL) = self.pipRestoreCompletionHandler;
   self.pipRestoreCompletionHandler = nil;
