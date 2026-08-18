@@ -53,6 +53,10 @@
 @property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
 /// Held during PiP restore to defer completionHandler until Dart sends source rect.
 @property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
+/// Whether a programmatic PiP stop is waiting for Dart to provide the restore source rect.
+@property(nonatomic) BOOL pipStopPendingSourceRect;
+/// Whether the source rect was prepared before a programmatic PiP stop.
+@property(nonatomic) BOOL pipStopWithPreparedSourceRect;
 /// AVPictureInPictureController.requiresLinearPlayback に設定したい値。
 /// setter が呼ばれた時点で _pipController が未生成の場合があるため保持しておき、
 /// setupPictureInPicture 実行時、もしくは controller が既に存在する場合は即時に反映する。
@@ -68,6 +72,7 @@ static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
 static void *rateContext = &rateContext;
 static const CGFloat kPipRestoreVisibleEdge = 2.0;
+static const NSTimeInterval kPipRestoreSourceRectTimeout = 0.5;
 /// PiP 復帰アニメーション中に _pipPlayerLayer へ適用する角丸の半径。
 /// Dart 側で動画フレームに角丸 (ClipRRect 等) を付けている場合、
 /// 復帰アニメーションの最後で Flutter の Texture に切り替わった際に
@@ -481,6 +486,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)tearDownPictureInPicture {
   // Release any pending completionHandler to prevent leaks during dispose.
   self.pipRestoreCompletionHandler = nil;
+  self.pipStopPendingSourceRect = NO;
+  self.pipStopWithPreparedSourceRect = NO;
 
   if (_pipController) {
     if ([_pipController isPictureInPictureActive]) {
@@ -497,9 +504,36 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)stopPictureInPicture {
-  if (_pipController && [_pipController isPictureInPictureActive]) {
-    [_pipController stopPictureInPicture];
+  if (!_pipController || ![_pipController isPictureInPictureActive] ||
+      self.pipStopPendingSourceRect || self.pipStopWithPreparedSourceRect) {
+    return;
   }
+
+  if (!_eventSink) {
+    [_pipController stopPictureInPicture];
+    return;
+  }
+
+  // Unlike the system restore action, a programmatic stop does not necessarily
+  // ask the delegate to restore the UI. Resolve the destination first so the
+  // paused frame remains visible while PiP stops.
+  self.pipStopPendingSourceRect = YES;
+  _eventSink(@{@"event" : @"pipRestoreUserInterface"});
+
+  __weak typeof(self) weakSelf = self;
+  dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW,
+                    (int64_t)(kPipRestoreSourceRectTimeout * NSEC_PER_SEC)),
+      dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf || !strongSelf.pipStopPendingSourceRect) {
+          return;
+        }
+        strongSelf.pipStopPendingSourceRect = NO;
+        if ([strongSelf->_pipController isPictureInPictureActive]) {
+          [strongSelf->_pipController stopPictureInPicture];
+        }
+      });
 }
 
 - (void)setAutoPictureInPicture:(BOOL)enabled {
@@ -552,6 +586,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  self.pipStopPendingSourceRect = NO;
+  self.pipStopWithPreparedSourceRect = NO;
+
   // Restore the 1x1 frame required for auto PiP if it was reset during setup.
   if (@available(iOS 14.2, *)) {
     if (_pipController.canStartPictureInPictureAutomaticallyFromInline &&
@@ -624,6 +661,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
   // Clean up completionHandler if it wasn't called (e.g. user tapped close button).
   self.pipRestoreCompletionHandler = nil;
+  self.pipStopPendingSourceRect = NO;
+  self.pipStopWithPreparedSourceRect = NO;
 
   if (_eventSink) {
     _eventSink(@{@"event" : @"pipStopped"});
@@ -647,6 +686,17 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
     restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
+  // A system restore may race with a pending programmatic stop request.
+  self.pipStopPendingSourceRect = NO;
+
+  // The programmatic stop path has already placed the player layer at the
+  // destination, so there is no need for a second Dart round trip.
+  if (self.pipStopWithPreparedSourceRect) {
+    self.pipStopWithPreparedSourceRect = NO;
+    completionHandler(YES);
+    return;
+  }
+
   // Hold the completionHandler and wait for Dart to send the video source rect.
   // This allows PiP to animate back to the correct video position.
   self.pipRestoreCompletionHandler = completionHandler;
@@ -657,7 +707,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
   // Timeout: if Dart doesn't respond within 0.5s, complete without a source rect.
   __weak typeof(self) weakSelf = self;
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                               (int64_t)(kPipRestoreSourceRectTimeout * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
     __strong typeof(weakSelf) strongSelf = weakSelf;
     if (!strongSelf) return;
@@ -668,13 +719,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)completePipRestoreWithSourceRect:(CGRect)rect {
-  if (!self.pipRestoreCompletionHandler) {
+  BOOL isSystemRestore = self.pipRestoreCompletionHandler != nil;
+  BOOL isProgrammaticStop = self.pipStopPendingSourceRect;
+  if (!isSystemRestore && !isProgrammaticStop) {
     return;
   }
 
   if (![self isValidPipRestoreRect:rect]) {
-    // 不正値の場合はレイヤーに設定せず、画面を覆わずに復帰を完了する。
-    [self completePipRestoreWithoutSourceRect];
+    if (isSystemRestore) {
+      // 不正値の場合はレイヤーに設定せず、画面を覆わずに復帰を完了する。
+      [self completePipRestoreWithoutSourceRect];
+    } else {
+      self.pipStopPendingSourceRect = NO;
+      [_pipController stopPictureInPicture];
+    }
     return;
   }
 
@@ -685,9 +743,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   _pipPlayerLayer.hidden = NO;
   [CATransaction commit];
 
-  void (^completionHandler)(BOOL) = self.pipRestoreCompletionHandler;
-  self.pipRestoreCompletionHandler = nil;
-  completionHandler(YES);
+  if (isSystemRestore) {
+    void (^completionHandler)(BOOL) = self.pipRestoreCompletionHandler;
+    self.pipRestoreCompletionHandler = nil;
+    completionHandler(YES);
+  } else {
+    self.pipStopPendingSourceRect = NO;
+    self.pipStopWithPreparedSourceRect = YES;
+    [_pipController stopPictureInPicture];
+  }
 
   // rect は didStopPictureInPicture で PiP 停止後に reset する。
 }
