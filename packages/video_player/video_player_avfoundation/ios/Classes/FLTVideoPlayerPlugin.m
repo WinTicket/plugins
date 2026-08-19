@@ -491,10 +491,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     _pipController = nil;
   }
   // Remove the playerLayer only on full dispose. Keep it alive for PiP reuse.
-  if (_pipPlayerLayer) {
-    [_pipPlayerLayer removeFromSuperlayer];
-    _pipPlayerLayer = nil;
-  }
+  [_pipPlayerLayer removeFromSuperlayer];
+  _pipPlayerLayer = nil;
 }
 
 - (void)stopPictureInPictureWithSourceRect:(CGRect)sourceRect {
