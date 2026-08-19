@@ -419,7 +419,10 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   /// Stops Picture-in-Picture mode.
   Future<void> stopPictureInPicture() {
-    return _platform.stopPictureInPicture(_textureId);
+    return _platform.stopPictureInPicture(
+      _textureId,
+      sourceRect: _resolvePipSourceRect(),
+    );
   }
 
   /// Sets whether Picture-in-Picture should start automatically when the app

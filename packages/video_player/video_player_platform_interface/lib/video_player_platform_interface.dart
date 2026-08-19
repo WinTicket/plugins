@@ -125,7 +125,11 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   }
 
   /// Stops Picture-in-Picture mode.
-  Future<void> stopPictureInPicture(int textureId) {
+  ///
+  /// [sourceRect] is the screen position of the inline player to which the PiP
+  /// window should return. Platforms that do not use a restore destination may
+  /// ignore it.
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) {
     throw UnimplementedError(
         'stopPictureInPicture() has not been implemented.');
   }

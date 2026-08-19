@@ -103,6 +103,15 @@ class PipSourceRectMessage {
   double height;
 }
 
+class PipStopMessage {
+  PipStopMessage(this.textureId);
+  int textureId;
+  double? x;
+  double? y;
+  double? width;
+  double? height;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('initialize')
@@ -139,7 +148,7 @@ abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('isPlaying:')
   IsPlayingMessage isPlaying(TextureMessage msg);
   @ObjCSelector('stopPictureInPicture:')
-  void stopPictureInPicture(TextureMessage msg);
+  void stopPictureInPicture(PipStopMessage msg);
   @ObjCSelector('setAutoPictureInPicture:')
   void setAutoPictureInPicture(PipStatusMessage msg);
   @ObjCSelector('setRequiresLinearPlayback:')

@@ -25,6 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class FLTIsPlayingMessage;
 @class FLTPipStatusMessage;
 @class FLTPipSourceRectMessage;
+@class FLTPipStopMessage;
 
 @interface FLTTextureMessage : NSObject
 /// `init` unavailable to enforce nonnull fields, see the `make` class method.
@@ -162,6 +163,21 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong) NSNumber * height;
 @end
 
+@interface FLTPipStopMessage : NSObject
+/// `init` unavailable to enforce nonnull fields, see the `make` class method.
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)makeWithTextureId:(NSNumber *)textureId
+    x:(nullable NSNumber *)x
+    y:(nullable NSNumber *)y
+    width:(nullable NSNumber *)width
+    height:(nullable NSNumber *)height;
+@property(nonatomic, strong) NSNumber * textureId;
+@property(nonatomic, strong, nullable) NSNumber * x;
+@property(nonatomic, strong, nullable) NSNumber * y;
+@property(nonatomic, strong, nullable) NSNumber * width;
+@property(nonatomic, strong, nullable) NSNumber * height;
+@end
+
 /// The codec used by FLTAVFoundationVideoPlayerApi.
 NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 
@@ -187,7 +203,7 @@ NSObject<FlutterMessageCodec> *FLTAVFoundationVideoPlayerApiGetCodec(void);
 - (void)setMaxVideoResolution:(FLTMaxVideoResolutionMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 /// @return `nil` only when `error != nil`.
 - (nullable FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
-- (void)stopPictureInPicture:(FLTTextureMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
+- (void)stopPictureInPicture:(FLTPipStopMessage *)msg error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)setRequiresLinearPlayback:(FLTPipStatusMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;
 - (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input error:(FlutterError *_Nullable *_Nonnull)error;

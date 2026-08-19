@@ -221,8 +221,14 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> stopPictureInPicture(int textureId) {
-    return _api.stopPictureInPicture(TextureMessage(textureId: textureId));
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) {
+    return _api.stopPictureInPicture(PipStopMessage(
+      textureId: textureId,
+      x: sourceRect?.left,
+      y: sourceRect?.top,
+      width: sourceRect?.width,
+      height: sourceRect?.height,
+    ));
   }
 
   @override

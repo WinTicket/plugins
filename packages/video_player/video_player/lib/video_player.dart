@@ -754,7 +754,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposedOrNotInitialized) {
       return;
     }
-    await _videoPlayerPlatform.stopPictureInPicture(_textureId);
+    await _videoPlayerPlatform.stopPictureInPicture(
+      _textureId,
+      sourceRect: _resolvePipSourceRect(),
+    );
   }
 
   /// Enables or disables automatic Picture-in-Picture.

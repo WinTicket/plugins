@@ -70,6 +70,14 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else
+    if (value is PipSourceRectMessage) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    } else
+    if (value is PipStopMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -116,6 +124,12 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       case 140:
         return PipStatusMessage.decode(readValue(buffer)!);
 
+      case 141:
+        return PipSourceRectMessage.decode(readValue(buffer)!);
+
+      case 142:
+        return PipStopMessage.decode(readValue(buffer)!);
+
       default:
         return super.readValueOfType(type, buffer);
 
@@ -141,7 +155,7 @@ abstract class TestHostVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
-  void stopPictureInPicture(TextureMessage msg);
+  void stopPictureInPicture(PipStopMessage msg);
   void setAutoPictureInPicture(PipStatusMessage msg);
   static void setup(TestHostVideoPlayerApi? api, {BinaryMessenger? binaryMessenger}) {
     {
@@ -406,8 +420,8 @@ abstract class TestHostVideoPlayerApi {
         channel.setMockMessageHandler((Object? message) async {
           assert(message != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final TextureMessage? arg_msg = (args[0] as TextureMessage?);
-          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture was null, expected non-null TextureMessage.');
+          final PipStopMessage? arg_msg = (args[0] as PipStopMessage?);
+          assert(arg_msg != null, 'Argument for dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture was null, expected non-null PipStopMessage.');
           api.stopPictureInPicture(arg_msg!);
           return <Object?, Object?>{};
         });

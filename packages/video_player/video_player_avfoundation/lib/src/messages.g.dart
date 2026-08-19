@@ -381,6 +381,43 @@ class PipSourceRectMessage {
   }
 }
 
+class PipStopMessage {
+  PipStopMessage({
+    required this.textureId,
+    this.x,
+    this.y,
+    this.width,
+    this.height,
+  });
+
+  int textureId;
+  double? x;
+  double? y;
+  double? width;
+  double? height;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['x'] = x;
+    pigeonMap['y'] = y;
+    pigeonMap['width'] = width;
+    pigeonMap['height'] = height;
+    return pigeonMap;
+  }
+
+  static PipStopMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipStopMessage(
+      textureId: pigeonMap['textureId']! as int,
+      x: pigeonMap['x'] as double?,
+      y: pigeonMap['y'] as double?,
+      width: pigeonMap['width'] as double?,
+      height: pigeonMap['height'] as double?,
+    );
+  }
+}
+
 class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   const _AVFoundationVideoPlayerApiCodec();
   @override
@@ -441,6 +478,10 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else
+    if (value is PipStopMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -489,6 +530,9 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
 
       case 141:
         return PipSourceRectMessage.decode(readValue(buffer)!);
+
+      case 142:
+        return PipStopMessage.decode(readValue(buffer)!);
 
       default:
         return super.readValueOfType(type, buffer);
@@ -885,7 +929,7 @@ class AVFoundationVideoPlayerApi {
     }
   }
 
-  Future<void> stopPictureInPicture(TextureMessage arg_msg) async {
+  Future<void> stopPictureInPicture(PipStopMessage arg_msg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: _binaryMessenger);
     final Map<Object?, Object?>? replyMap =

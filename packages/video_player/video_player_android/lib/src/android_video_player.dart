@@ -219,7 +219,7 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  Future<void> stopPictureInPicture(int textureId) {
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) {
     return _api.stopPictureInPicture(TextureMessage(textureId: textureId));
   }
 

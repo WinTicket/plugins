@@ -23,6 +23,7 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   VolumeMessage? volumeMessage;
   PlaybackSpeedMessage? playbackSpeedMessage;
   MixWithOthersMessage? mixWithOthersMessage;
+  PipStopMessage? pipStopMessage;
 
   @override
   TextureMessage create(CreateMessage arg) {
@@ -123,9 +124,9 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void stopPictureInPicture(TextureMessage arg) {
+  void stopPictureInPicture(PipStopMessage arg) {
     log.add('stopPictureInPicture');
-    textureMessage = arg;
+    pipStopMessage = arg;
   }
 
   @override
@@ -279,9 +280,25 @@ void main() {
     });
 
     test('stopPictureInPicture', () async {
-      await player.stopPictureInPicture(1);
+      await player.stopPictureInPicture(
+        1,
+        sourceRect: const Rect.fromLTWH(10, 20, 320, 180),
+      );
       expect(log.log.last, 'stopPictureInPicture');
-      expect(log.textureMessage?.textureId, 1);
+      expect(log.pipStopMessage?.textureId, 1);
+      expect(log.pipStopMessage?.x, 10);
+      expect(log.pipStopMessage?.y, 20);
+      expect(log.pipStopMessage?.width, 320);
+      expect(log.pipStopMessage?.height, 180);
+    });
+
+    test('stopPictureInPicture without source rect', () async {
+      await player.stopPictureInPicture(1);
+      expect(log.pipStopMessage?.textureId, 1);
+      expect(log.pipStopMessage?.x, isNull);
+      expect(log.pipStopMessage?.y, isNull);
+      expect(log.pipStopMessage?.width, isNull);
+      expect(log.pipStopMessage?.height, isNull);
     });
 
     test('videoEventsFor', () async {

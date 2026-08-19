@@ -1196,6 +1196,39 @@ void main() {
     });
   });
 
+  group('stopPictureInPicture', () {
+    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
+
+    setUp(() {
+      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
+    });
+
+    test('forwards the current PiP source rect', () async {
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      const Rect sourceRect = Rect.fromLTWH(10, 20, 320, 180);
+      await controller.initialize();
+      controller.addPipSourceRectProvider(() => sourceRect);
+
+      await controller.stopPictureInPicture();
+
+      expect(fakeVideoPlayerPlatform.lastPipSourceRect, sourceRect);
+      await controller.dispose();
+    });
+
+    test('supports stopping without a PiP source rect', () async {
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      await controller.initialize();
+
+      await controller.stopPictureInPicture();
+
+      expect(fakeVideoPlayerPlatform.lastPipSourceRect, isNull);
+      await controller.dispose();
+    });
+  });
+
   test('VideoProgressColors', () {
     const Color playedColor = Color.fromRGBO(0, 0, 255, 0.75);
     const Color bufferedColor = Color.fromRGBO(0, 255, 0, 0.5);
@@ -1223,6 +1256,7 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   final Map<int, Duration> _positions = <int, Duration>{};
   int? lastMaxVideoWidth;
   int? lastMaxVideoHeight;
+  Rect? lastPipSourceRect;
 
   @override
   Future<int?> create(DataSource dataSource) async {
@@ -1305,6 +1339,12 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
     calls.add('setMaxVideoResolution');
     lastMaxVideoWidth = width;
     lastMaxVideoHeight = height;
+  }
+
+  @override
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) async {
+    calls.add('stopPictureInPicture');
+    lastPipSourceRect = sourceRect;
   }
 }
 
