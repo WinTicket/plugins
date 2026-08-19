@@ -628,7 +628,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   }
 
   // completionHandler 直後に hidden にすることで縮小アニメーション自体を視覚的に消す。
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
   _pipPlayerLayer.hidden = YES;
+  [CATransaction commit];
 }
 
 - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
