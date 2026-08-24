@@ -768,9 +768,6 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ///
   /// On unsupported versions, this is a no-op.
   Future<void> setAutoPictureInPicture(bool enabled) async {
-    if (_isDisposedOrNotInitialized) {
-      return;
-    }
     await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
   }
 
