@@ -479,10 +479,26 @@ final class VideoPlayer {
   }
 
   void dispose() {
+    // auto PiP が有効なまま dispose されると、Activity 側の PictureInPictureParams
+    // (setAutoEnterEnabled(true)) が破棄済みプレイヤーを指したまま残ってしまい、
+    // 次回バックグラウンド遷移時に破棄済みの映像で PiP が自動起動しようとする恐れがある。
+    // activity を null 化する前に無効化しておく。
+    if (autoPipEnabled && activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(false)
+              .build();
+      activity.setPictureInPictureParams(params);
+    }
+    autoPipEnabled = false;
+    pipRequestHandler = null;
+    videoPlayerCallbacks = null;
     activity = null;
     if (isInitialized) {
       exoPlayer.stop();
     }
+    isInitialized = false;
     textureEntry.release();
     eventChannel.setStreamHandler(null);
     if (surface != null) {
