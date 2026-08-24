@@ -1090,7 +1090,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 - (void)tearDownPictureInPictureForAllPlayersExcept:(NSNumber *)textureId {
   [self.playersByTextureId enumerateKeysAndObjectsUsingBlock:^(NSNumber *key, FLTVideoPlayer *player, BOOL *stop) {
     if (![key isEqualToNumber:textureId]) {
-      [player tearDownPictureInPicture];
+      // tearDownPictureInPicture を直接呼ぶと autoPipChanged イベントが送信されず、
+      // Dart 側の isAutoPipEnabled が true のまま実態と乖離してしまう。
+      // setAutoPictureInPicture: 経由にすることでイベント送信を保証する。
+      [player setAutoPictureInPicture:NO];
     }
   }];
 }
