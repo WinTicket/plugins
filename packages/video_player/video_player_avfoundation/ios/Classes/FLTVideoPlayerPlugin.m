@@ -57,6 +57,10 @@
 /// setter が呼ばれた時点で _pipController が未生成の場合があるため保持しておき、
 /// setupPictureInPicture 実行時、もしくは controller が既に存在する場合は即時に反映する。
 @property(nonatomic) BOOL requiresLinearPlayback;
+/// stopPictureInPicture() は非同期のため、呼び出し直後に delegate/controller を
+/// 破棄すると pictureInPictureControllerDidStopPictureInPicture: が呼ばれなくなる。
+/// このフラグが YES の間は、実際の解放をそのコールバック側で行う。
+@property(nonatomic) BOOL pipTeardownPending;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -69,6 +73,10 @@ static void *playbackBufferFullContext = &playbackBufferFullContext;
 static void *rateContext = &rateContext;
 static const CGFloat kPipRestoreVisibleEdge = 2.0;
 static const NSTimeInterval kPipRestoreSourceRectTimeout = 0.5;
+/// pictureInPictureControllerDidStopPictureInPicture: が発火しなかった場合
+/// (アプリ強制終了、controller の早期 dealloc、システム割り込み等) に備えた
+/// teardown の強制実行までの待機時間。通常の停止アニメーションより十分長く取る。
+static const NSTimeInterval kPipTeardownTimeout = 1.5;
 /// PiP 復帰アニメーション中に _pipPlayerLayer へ適用する角丸の半径。
 /// Dart 側で動画フレームに角丸 (ClipRRect 等) を付けている場合、
 /// 復帰アニメーションの最後で Flutter の Texture に切り替わった際に
@@ -210,6 +218,16 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
   return [self initWithPlayerItem:item frameUpdater:frameUpdater];
+}
+
+- (void)dealloc {
+  // pictureInPictureControllerDidStopPictureInPicture: / タイムアウトのどちらも
+  // 発火しないまま self が破棄されるケースに備えた最終防衛ライン。
+  // _pipPlayerLayer は superlayer 側から強参照されているため、明示的に
+  // removeFromSuperlayer しないと self が消えた後もキーウィンドウの layer
+  // ツリーに残留し続けてしまう。
+  _pipController.delegate = nil;
+  [_pipPlayerLayer removeFromSuperlayer];
 }
 
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
@@ -485,12 +503,41 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
   if (_pipController) {
     if ([_pipController isPictureInPictureActive]) {
+      // stopPictureInPicture() は非同期。ここで delegate/controller を破棄すると
+      // 停止完了時の pictureInPictureControllerDidStopPictureInPicture: が
+      // 飛ばなくなり、pipStopped イベントや再生状態の同期が漏れる。
+      // 実際の解放はそのコールバック側 (completePipTeardownIfNeeded) で行う。
+      _pipTeardownPending = YES;
       [_pipController stopPictureInPicture];
+
+      // コールバックが発火しない場合 (アプリ強制終了、controller の早期 dealloc、
+      // システム割り込み等) の安全網。_pipPlayerLayer がキーウィンドウの
+      // layer ツリーに残留し続けるリーク・寿命超過を防ぐ。
+      __weak typeof(self) weakSelf = self;
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kPipTeardownTimeout * NSEC_PER_SEC)),
+                     dispatch_get_main_queue(), ^{
+        [weakSelf completePipTeardownIfNeeded];
+      });
+      return;
     }
     _pipController.delegate = nil;
     _pipController = nil;
   }
   // Remove the playerLayer only on full dispose. Keep it alive for PiP reuse.
+  [_pipPlayerLayer removeFromSuperlayer];
+  _pipPlayerLayer = nil;
+}
+
+/// tearDownPictureInPicture から委譲された、PiP 停止完了後の実解放処理。
+/// pictureInPictureControllerDidStopPictureInPicture: とタイムアウトの
+/// どちらから呼ばれても安全なよう冪等にしてある。
+- (void)completePipTeardownIfNeeded {
+  if (!_pipTeardownPending) {
+    return;
+  }
+  _pipTeardownPending = NO;
+  _pipController.delegate = nil;
+  _pipController = nil;
   [_pipPlayerLayer removeFromSuperlayer];
   _pipPlayerLayer = nil;
 }
@@ -656,6 +703,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     _eventSink(@{@"event" : @"pipStopped"});
   }
   [self updatePlayingState];
+
+  [self completePipTeardownIfNeeded];
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
