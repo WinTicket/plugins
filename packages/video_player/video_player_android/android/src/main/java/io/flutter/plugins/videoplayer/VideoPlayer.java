@@ -375,18 +375,20 @@ final class VideoPlayer {
   }
 
   void setAutoPictureInPicture(boolean enabled) {
-    this.autoPipEnabled = enabled;
-
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
       // API 31 未満では setAutoEnterEnabled が使えない。
       // Flutter 側のフォールバックに委ねるため、要求された enabled 値をそのまま通知。
       sendAutoPipChangedEvent(enabled);
+      this.autoPipEnabled = enabled;
       return;
     }
     if (activity == null) {
       sendAutoPipChangedEvent(false);
+      this.autoPipEnabled = false;
       return;
     }
+
+    this.autoPipEnabled = enabled;
 
     if (pipRequestHandler != null && enabled) {
       pipRequestHandler.onPipRequested();
