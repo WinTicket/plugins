@@ -5,10 +5,18 @@
 package io.flutter.plugins.videoplayer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
+import android.app.PictureInPictureParams;
+import android.content.pm.PackageManager;
+import android.util.Rational;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.Player;
@@ -24,6 +32,7 @@ import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
 @RunWith(RobolectricTestRunner.class)
 public class VideoPlayerTest {
@@ -182,5 +191,87 @@ public class VideoPlayerTest {
     HashMap<String, Object> event = eventCaptor.getValue();
     assertEquals(event.get("event"), "isPlayingStateUpdate");
     assertEquals(event.get("isPlaying"), false);
+  }
+
+  @Test
+  @Config(sdk = 28)
+  public void enterAutoPictureInPictureEntersOnAndroid9WhenEligible() {
+    Activity activity = mock(Activity.class);
+    PackageManager packageManager = mock(PackageManager.class);
+    when(activity.getPackageManager()).thenReturn(packageManager);
+    when(packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
+        .thenReturn(true);
+    when(fakeExoPlayer.isPlaying()).thenReturn(true);
+    when(activity.enterPictureInPictureMode(any(PictureInPictureParams.class))).thenReturn(true);
+
+    VideoPlayer videoPlayer = createVideoPlayer();
+    VideoPlayer.PipRequestHandler pipRequestHandler = mock(VideoPlayer.PipRequestHandler.class);
+    videoPlayer.setActivity(activity);
+    videoPlayer.setPipRequestHandler(pipRequestHandler);
+    videoPlayer.setAutoPictureInPicture(true);
+
+    assertTrue(videoPlayer.enterAutoPictureInPicture());
+
+    verify(pipRequestHandler).onPipRequested();
+    ArgumentCaptor<PictureInPictureParams> paramsCaptor =
+        ArgumentCaptor.forClass(PictureInPictureParams.class);
+    verify(activity).enterPictureInPictureMode(paramsCaptor.capture());
+    assertEquals(new Rational(16, 9), paramsCaptor.getValue().getAspectRatio());
+  }
+
+  @Test
+  @Config(sdk = 28)
+  public void enterAutoPictureInPictureDoesNotEnterWhenIneligible() {
+    Activity activity = mock(Activity.class);
+    PackageManager packageManager = mock(PackageManager.class);
+    when(activity.getPackageManager()).thenReturn(packageManager);
+    when(packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
+        .thenReturn(true);
+    when(fakeExoPlayer.isPlaying()).thenReturn(true);
+
+    VideoPlayer videoPlayer = createVideoPlayer();
+    videoPlayer.setActivity(activity);
+
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+
+    videoPlayer.setAutoPictureInPicture(true);
+    when(fakeExoPlayer.isPlaying()).thenReturn(false);
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+
+    when(fakeExoPlayer.isPlaying()).thenReturn(true);
+    when(packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
+        .thenReturn(false);
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+
+    when(packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
+        .thenReturn(true);
+    when(activity.isInPictureInPictureMode()).thenReturn(true);
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+
+    verify(activity, never()).enterPictureInPictureMode(any(PictureInPictureParams.class));
+  }
+
+  @Test
+  @Config(sdk = 31)
+  public void enterAutoPictureInPictureDoesNotEnterExplicitlyOnAndroid12() {
+    Activity activity = mock(Activity.class);
+    when(fakeExoPlayer.isPlaying()).thenReturn(true);
+
+    VideoPlayer videoPlayer = createVideoPlayer();
+    videoPlayer.setActivity(activity);
+    videoPlayer.setAutoPictureInPicture(true);
+
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+    verify(activity, never()).enterPictureInPictureMode(any(PictureInPictureParams.class));
+  }
+
+  private VideoPlayer createVideoPlayer() {
+    return new VideoPlayer(
+        fakeExoPlayer,
+        fakeEventChannel,
+        fakeSurfaceTextureEntry,
+        fakeVideoPlayerOptions,
+        fakeEventSink,
+        trackSelector);
   }
 }

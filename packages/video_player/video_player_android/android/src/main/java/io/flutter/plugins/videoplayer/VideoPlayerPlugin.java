@@ -23,6 +23,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
 import io.flutter.plugins.videoplayer.Messages.BufferMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
@@ -49,6 +50,9 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
   // Tracks which player last requested PiP, so events go to the right player.
   private long lastPipPlayerId = -1;
   @Nullable private Consumer<PictureInPictureModeChangedInfo> pipModeChangedListener;
+  private final PluginRegistry.UserLeaveHintListener userLeaveHintListener =
+      this::onUserLeaveHint;
+  @Nullable private ActivityPluginBinding userLeaveHintBinding;
 
   /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
   public VideoPlayerPlugin() {}
@@ -73,6 +77,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
     }
     flutterState.stopListening(binding.getBinaryMessenger());
     flutterState = null;
+    unregisterUserLeaveHintListener();
     onDestroy();
   }
 
@@ -83,10 +88,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
     activity = binding.getActivity();
     setActivityOnAllPlayers(activity);
     registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
   }
 
   @Override
   public void onDetachedFromActivityForConfigChanges() {
+    unregisterUserLeaveHintListener();
     activity = null;
     setActivityOnAllPlayers(null);
   }
@@ -96,10 +103,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
     activity = binding.getActivity();
     setActivityOnAllPlayers(activity);
     registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
   }
 
   @Override
   public void onDetachedFromActivity() {
+    unregisterUserLeaveHintListener();
     activity = null;
     setActivityOnAllPlayers(null);
     pipModeChangedListener = null;
@@ -149,6 +158,29 @@ public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidV
             }
           };
       provider.addOnPictureInPictureModeChangedListener(pipModeChangedListener);
+    }
+  }
+
+  private void registerUserLeaveHintListener(@NonNull ActivityPluginBinding binding) {
+    unregisterUserLeaveHintListener();
+    if (!VideoPlayer.supportsExplicitAutoPictureInPicture()) {
+      return;
+    }
+    userLeaveHintBinding = binding;
+    binding.addOnUserLeaveHintListener(userLeaveHintListener);
+  }
+
+  private void unregisterUserLeaveHintListener() {
+    if (userLeaveHintBinding != null) {
+      userLeaveHintBinding.removeOnUserLeaveHintListener(userLeaveHintListener);
+    }
+    userLeaveHintBinding = null;
+  }
+
+  private void onUserLeaveHint() {
+    VideoPlayer player = videoPlayers.get(lastPipPlayerId);
+    if (player != null) {
+      player.enterAutoPictureInPicture();
     }
   }
 

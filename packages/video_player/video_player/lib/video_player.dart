@@ -764,6 +764,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ///
   /// When enabled:
   /// - Android 12+ (API 31+): Uses native setAutoEnterEnabled
+  /// - Android 8-11 (API 26-30): Enters PiP from onUserLeaveHint
   /// - iOS 14.2+: Uses canStartPictureInPictureAutomaticallyFromInline
   ///
   /// On unsupported versions, this is a no-op.

@@ -16,8 +16,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.util.Rational;
 import android.view.Surface;
+import androidx.annotation.ChecksSdkIntAtLeast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -375,40 +377,72 @@ final class VideoPlayer {
   }
 
   void setAutoPictureInPicture(boolean enabled) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-      // API 31 未満では setAutoEnterEnabled が使えない。
-      // Flutter 側のフォールバックに委ねるため、要求された enabled 値をそのまま通知。
-      sendAutoPipChangedEvent(enabled);
-      this.autoPipEnabled = enabled;
-      return;
-    }
-    if (activity == null) {
-      sendAutoPipChangedEvent(false);
-      this.autoPipEnabled = false;
-      return;
-    }
+    boolean usesSystemAutoEnter = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+    boolean effectiveEnabled = enabled && (!usesSystemAutoEnter || activity != null);
 
-    this.autoPipEnabled = enabled;
-
-    if (pipRequestHandler != null && enabled) {
+    this.autoPipEnabled = effectiveEnabled;
+    if (effectiveEnabled
+        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && pipRequestHandler != null) {
       pipRequestHandler.onPipRequested();
     }
 
-    PictureInPictureParams params =
-        new PictureInPictureParams.Builder()
-            .setAspectRatio(getVideoAspectRatio())
-            .setAutoEnterEnabled(enabled)
-            .build();
-    activity.setPictureInPictureParams(params);
+    if (usesSystemAutoEnter && activity != null) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(effectiveEnabled)
+              .build();
+      activity.setPictureInPictureParams(params);
+    }
 
-    sendAutoPipChangedEvent(enabled);
+    sendAutoPipChangedEvent(effectiveEnabled);
   }
 
   boolean isAutoPipEnabled() {
     return autoPipEnabled;
   }
 
+  /** Enters PiP explicitly on Android versions that do not support automatic PiP entry. */
+  boolean enterAutoPictureInPicture() {
+    if (!supportsExplicitAutoPictureInPicture()) {
+      return false;
+    }
+
+    Activity activity = this.activity;
+    if (activity == null || !isAutoPictureInPictureReady()) {
+      return false;
+    }
+
+    if (!canEnterPictureInPicture(activity)) {
+      return false;
+    }
+
+    PictureInPictureParams params =
+        new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
+    return activity.enterPictureInPictureMode(params);
+  }
+
+  @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.O)
+  static boolean supportsExplicitAutoPictureInPicture() {
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && Build.VERSION.SDK_INT < Build.VERSION_CODES.S;
+  }
+
+  private boolean isAutoPictureInPictureReady() {
+    return autoPipEnabled && getIsPlaying();
+  }
+
+  @RequiresApi(Build.VERSION_CODES.O)
+  private boolean canEnterPictureInPicture(@NonNull Activity activity) {
+    return !activity.isInPictureInPictureMode()
+        && activity
+            .getPackageManager()
+            .hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+  }
+
   /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
+  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
   private Rational getVideoAspectRatio() {
     Format videoFormat = exoPlayer.getVideoFormat();
     if (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0) {
