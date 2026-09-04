@@ -741,6 +741,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// This API is currently unused.
   Rect? Function()? pipSourceRectProvider;
 
+  /// Callback invoked when something other than this controller's [play] /
+  /// [pause] changes the playback intent (e.g. the native Picture-in-Picture
+  /// window's play/pause button on iOS). `true` means play, `false` pause.
+  ///
+  /// This API is currently unused.
+  ValueChanged<bool>? onPlaybackIntentChanged;
+
   /// Sets the caption offset.
   ///
   /// The [offset] will be used when getting the correct caption for a specific position.
