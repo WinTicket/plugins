@@ -47,6 +47,8 @@ class VideoPlayerValue {
     this.isPlaying = false,
     this.isLooping = false,
     this.isBuffering = false,
+    this.isPipActive = false,
+    this.isAutoPipEnabled = false,
     this.volume = 1.0,
     this.playbackSpeed = 1.0,
     this.rotationCorrection = 0,
@@ -98,6 +100,12 @@ class VideoPlayerValue {
 
   /// True if the video is currently buffering.
   final bool isBuffering;
+
+  /// True if the video is currently in Picture-in-Picture mode.
+  final bool isPipActive;
+
+  /// True if automatic Picture-in-Picture is enabled.
+  final bool isAutoPipEnabled;
 
   /// The current volume of the playback.
   final double volume;
@@ -153,6 +161,8 @@ class VideoPlayerValue {
     bool? isPlaying,
     bool? isLooping,
     bool? isBuffering,
+    bool? isPipActive,
+    bool? isAutoPipEnabled,
     double? volume,
     double? playbackSpeed,
     int? rotationCorrection,
@@ -169,6 +179,8 @@ class VideoPlayerValue {
       isPlaying: isPlaying ?? this.isPlaying,
       isLooping: isLooping ?? this.isLooping,
       isBuffering: isBuffering ?? this.isBuffering,
+      isPipActive: isPipActive ?? this.isPipActive,
+      isAutoPipEnabled: isAutoPipEnabled ?? this.isAutoPipEnabled,
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
@@ -191,6 +203,8 @@ class VideoPlayerValue {
         'isPlaying: $isPlaying, '
         'isLooping: $isLooping, '
         'isBuffering: $isBuffering, '
+        'isPipActive: $isPipActive, '
+        'isAutoPipEnabled: $isAutoPipEnabled, '
         'volume: $volume, '
         'playbackSpeed: $playbackSpeed, '
         'errorDescription: $errorDescription)';
@@ -691,6 +705,48 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     _maxVideoHeight = (height != null && height > 0) ? height : null;
     await _applyMaxVideoResolution();
   }
+
+  /// Requests Picture-in-Picture mode.
+  ///
+  /// This API is currently a no-op.
+  Future<void> startPictureInPicture() async {}
+
+  /// Requests leaving Picture-in-Picture mode.
+  ///
+  /// This API is currently a no-op.
+  Future<void> stopPictureInPicture() async {}
+
+  /// Returns whether Picture-in-Picture is supported on this device.
+  ///
+  /// This API currently always returns false.
+  Future<bool> isPictureInPictureSupported() async => false;
+
+  /// Returns whether Picture-in-Picture is currently active.
+  ///
+  /// This API currently always returns false.
+  Future<bool> isPictureInPictureActive() async => false;
+
+  /// Enables or disables automatic Picture-in-Picture.
+  ///
+  /// This API is currently a no-op.
+  Future<void> setAutoPictureInPicture(bool enabled) async {}
+
+  /// Sets whether Picture-in-Picture requires linear playback at runtime.
+  ///
+  /// This API is currently a no-op.
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {}
+
+  /// Callback that returns the screen rect of the video Texture widget.
+  ///
+  /// This API is currently unused.
+  Rect? Function()? pipSourceRectProvider;
+
+  /// Callback invoked when something other than this controller's [play] /
+  /// [pause] changes the playback intent (e.g. the native Picture-in-Picture
+  /// window's play/pause button on iOS). `true` means play, `false` pause.
+  ///
+  /// This API is currently unused.
+  ValueChanged<bool>? onPlaybackIntentChanged;
 
   /// Sets the caption offset.
   ///
