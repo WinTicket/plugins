@@ -579,11 +579,11 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
         _pipController.canStartPictureInPictureAutomaticallyFromInline = YES;
       }
     } else {
-      // Auto PiP 無効化: PiP layer / controller を完全 teardown する。
-      // layer が Root Window から外れることで "AVPlayer 単独" 状態に戻り、
-      // AVAudioSession.setCategory(.playback) だけで bg audio が継続可能になる。
-      // audioOnly / off の区別は呼び出し側 (app) の AVAudioSession 制御で行う。
-      [self tearDownPictureInPicture];
+      if ([_pipController isPictureInPictureActive]) {
+        _pipController.canStartPictureInPictureAutomaticallyFromInline = NO;
+      } else {
+        [self tearDownPictureInPicture];
+      }
     }
   }
   if (_eventSink) {
