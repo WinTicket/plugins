@@ -347,7 +347,8 @@ class VideoEvent {
 
   /// Whether the video is currently playing.
   ///
-  /// Only used if [eventType] is [VideoEventType.isPlayingStateUpdate].
+  /// Only used if [eventType] is [VideoEventType.isPlayingStateUpdate] or
+  /// [VideoEventType.playbackIntentUpdate].
   final bool? isPlaying;
 
   /// Whether automatic Picture-in-Picture is enabled.
@@ -421,6 +422,11 @@ enum VideoEventType {
 
   /// Auto Picture-in-Picture enabled state changed.
   autoPipChanged,
+
+  /// The playback intent changed outside of this plugin's play/pause API
+  /// (e.g. the native Picture-in-Picture window's play/pause button on iOS).
+  /// Consumers should treat this the same as an explicit play/pause request.
+  playbackIntentUpdate,
 }
 
 /// Describes a discrete segment of time within a video using a [start] and

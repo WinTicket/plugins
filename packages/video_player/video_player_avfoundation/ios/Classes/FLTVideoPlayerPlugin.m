@@ -71,6 +71,7 @@ static void *playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
 static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
 static void *rateContext = &rateContext;
+static void *timeControlStatusContext = &timeControlStatusContext;
 static const CGFloat kPipRestoreVisibleEdge = 2.0;
 static const NSTimeInterval kPipRestoreSourceRectTimeout = 0.5;
 /// pictureInPictureControllerDidStopPictureInPicture: が発火しなかった場合
@@ -94,6 +95,10 @@ static const CGFloat kPipCornerRadius = 16.0;
             forKeyPath:@"rate"
                options:NSKeyValueObservingOptionNew
                context:rateContext];
+  [_player addObserver:self
+            forKeyPath:@"timeControlStatus"
+               options:NSKeyValueObservingOptionNew
+               context:timeControlStatusContext];
   [item addObserver:self
          forKeyPath:@"loadedTimeRanges"
             options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
@@ -350,6 +355,21 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
         @"event" : @"isPlayingStateUpdate",
         @"isPlaying" : player.rate > 0 ? @YES : @NO
       });
+    }
+  } else if (context == timeControlStatusContext) {
+    AVPlayer *player = (AVPlayer *)object;
+    // OS PiP のコントロールは play/pause API を経由せず AVPlayer を直接操作するため、
+    // 放置すると直後の updatePlayingState が古い _isPlaying で操作を打ち消す
+    // PiP 表示中に意図の乖離 (waiting はバッファ待ちなので再生意図扱い) を検知したら追従し、Dart へ通知する。
+    BOOL wantsToPlay = player.timeControlStatus != AVPlayerTimeControlStatusPaused;
+    if ([_pipController isPictureInPictureActive] && wantsToPlay != _isPlaying) {
+      _isPlaying = wantsToPlay;
+      if (_eventSink != nil) {
+        _eventSink(@{
+          @"event" : @"playbackIntentUpdate",
+          @"isPlaying" : wantsToPlay ? @YES : @NO
+        });
+      }
     }
   }
 }
@@ -884,6 +904,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [currentItem removeObserver:self forKeyPath:@"playbackBufferEmpty"];
   [currentItem removeObserver:self forKeyPath:@"playbackBufferFull"];
   [self.player removeObserver:self forKeyPath:@"rate"];
+  [self.player removeObserver:self forKeyPath:@"timeControlStatus"];
 
   [self.player replaceCurrentItemWithPlayerItem:nil];
   [[NSNotificationCenter defaultCenter] removeObserver:self];

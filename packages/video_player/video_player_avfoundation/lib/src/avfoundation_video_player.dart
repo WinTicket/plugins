@@ -175,6 +175,11 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
             eventType: VideoEventType.autoPipChanged,
             isAutoPipEnabled: map['enabled'] as bool? ?? false,
           );
+        case 'playbackIntentUpdate':
+          return VideoEvent(
+            eventType: VideoEventType.playbackIntentUpdate,
+            isPlaying: map['isPlaying'] as bool,
+          );
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }

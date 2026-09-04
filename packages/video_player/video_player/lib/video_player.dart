@@ -471,6 +471,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.autoPipChanged:
           value = value.copyWith(isAutoPipEnabled: event.isAutoPipEnabled);
           break;
+        case VideoEventType.playbackIntentUpdate:
+          onPlaybackIntentChanged?.call(event.isPlaying ?? false);
+          break;
       }
     }
 
@@ -815,6 +818,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// PiP から出たことを示す。
   /// [VideoPlayerValue.isPipActive] と同じ値がパラメータで渡される。
   void Function(bool isActive)? onPipActiveChanged;
+
+  /// OS 側 (例: iOS Native Picture-in-Picture ウィンドウのボタン) が [play] /
+  /// [pause] を経由せずプレイヤーを直接操作した時に、変化後の再生意図
+  /// (true = 再生) を通知する。呼び出し側で [play] / [pause] を呼び直すこと。
+  ValueChanged<bool>? onPlaybackIntentChanged;
 
   /// Resolves the rect to use for the PiP restore animation by trying
   /// registered providers from most-recently-registered to oldest, using
