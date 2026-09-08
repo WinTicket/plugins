@@ -420,7 +420,13 @@ final class VideoPlayer {
 
     PictureInPictureParams params =
         new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
-    return activity.enterPictureInPictureMode(params);
+    try {
+      return activity.enterPictureInPictureMode(params);
+    } catch (IllegalStateException e) {
+      // Some OEM builds (e.g. Samsung Android 9 with TalkBack enabled) reject PiP in the
+      // system service even though FEATURE_PICTURE_IN_PICTURE is reported as supported.
+      return false;
+    }
   }
 
   @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.O)
