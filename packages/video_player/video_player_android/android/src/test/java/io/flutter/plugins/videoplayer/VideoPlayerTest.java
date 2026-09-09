@@ -221,6 +221,28 @@ public class VideoPlayerTest {
 
   @Test
   @Config(sdk = 28)
+  public void enterAutoPictureInPictureReturnsFalseWhenSystemRejectsPip() {
+    Activity activity = mock(Activity.class);
+    PackageManager packageManager = mock(PackageManager.class);
+    when(activity.getPackageManager()).thenReturn(packageManager);
+    when(packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
+        .thenReturn(true);
+    when(fakeExoPlayer.isPlaying()).thenReturn(true);
+    when(activity.enterPictureInPictureMode(any(PictureInPictureParams.class)))
+        .thenThrow(
+            new IllegalStateException(
+                "enterPictureInPictureMode: Device doesn't support picture-in-picture mode."));
+
+    VideoPlayer videoPlayer = createVideoPlayer();
+    videoPlayer.setActivity(activity);
+    videoPlayer.setAutoPictureInPicture(true);
+
+    assertFalse(videoPlayer.enterAutoPictureInPicture());
+    verify(activity).enterPictureInPictureMode(any(PictureInPictureParams.class));
+  }
+
+  @Test
+  @Config(sdk = 28)
   public void enterAutoPictureInPictureDoesNotEnterWhenIneligible() {
     Activity activity = mock(Activity.class);
     PackageManager packageManager = mock(PackageManager.class);
