@@ -597,8 +597,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
         _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
         [CATransaction commit];
         _pipController.canStartPictureInPictureAutomaticallyFromInline = YES;
+        // layer が Root Window に attach されたまま bg 遷移すると、既定の
+        // AVPlayerAudiovisualBackgroundPlaybackPolicyAutomatic は「映像プレイヤーは
+        // 停止する」と判断し、PiP が起動しないケース (画面ロック等) で音声が止まる。
+        // auto PiP 有効時のみ継続を宣言する。
+        if (@available(iOS 15.0, *)) {
+          _player.audiovisualBackgroundPlaybackPolicy =
+              AVPlayerAudiovisualBackgroundPlaybackPolicyContinuesIfPossible;
+        }
       }
     } else {
+      if (@available(iOS 15.0, *)) {
+        _player.audiovisualBackgroundPlaybackPolicy =
+            AVPlayerAudiovisualBackgroundPlaybackPolicyAutomatic;
+      }
       if ([_pipController isPictureInPictureActive]) {
         _pipController.canStartPictureInPictureAutomaticallyFromInline = NO;
       } else {
