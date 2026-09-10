@@ -82,6 +82,12 @@ class IsPlayingMessage {
   bool isPlaying;
 }
 
+class PipStatusMessage {
+  PipStatusMessage(this.textureId, this.value);
+  int textureId;
+  bool value;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -99,4 +105,6 @@ abstract class AndroidVideoPlayerApi {
   void setBuffer(BufferMessage msg);
   void setMaxVideoResolution(MaxVideoResolutionMessage msg);
   IsPlayingMessage isPlaying(TextureMessage msg);
+  void stopPictureInPicture(TextureMessage msg);
+  void setAutoPictureInPicture(PipStatusMessage msg);
 }

@@ -166,6 +166,58 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Only set for [asset] videos. The package that the asset was loaded from.
   final String? package;
 
+  /// Whether Picture-in-Picture is currently active.
+  bool _isPipActive = false;
+
+  /// Returns whether Picture-in-Picture is currently active.
+  bool get isPipActive => _isPipActive;
+
+  /// Whether auto Picture-in-Picture is currently enabled.
+  bool _isAutoPipEnabled = true;
+
+  /// Returns whether auto Picture-in-Picture is currently enabled.
+  bool get isAutoPipEnabled => _isAutoPipEnabled;
+
+  /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
+  ///
+  /// [isActive] が true の場合は PiP に入ったこと、false の場合は
+  /// PiP から出たことを示す。
+  void Function(bool isActive)? onPipActiveChanged;
+
+  /// Providers that return the screen rect of a [VideoPlayer] widget
+  /// currently rendering this controller's video, for the PiP restore
+  /// animation. Registered automatically by [VideoPlayer].
+  ///
+  /// A single controller can be rendered by more than one [VideoPlayer] at
+  /// once (e.g. a thumbnail and a fullscreen view sharing the same
+  /// controller). Providers are kept in registration order; the most
+  /// recently registered one is tried first, since it's usually the widget
+  /// the user is currently looking at.
+  final List<Rect? Function()> _pipSourceRectProviders = <Rect? Function()>[];
+
+  /// Registers a callback that returns the on-screen rect of a widget
+  /// rendering this controller's video. Called automatically by
+  /// [VideoPlayer]; app code shouldn't need to call this directly.
+  void addPipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+    _pipSourceRectProviders.add(provider);
+  }
+
+  /// Unregisters a provider added via [addPipSourceRectProvider].
+  void removePipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+  }
+
+  Rect? _resolvePipSourceRect() {
+    for (final Rect? Function() provider in _pipSourceRectProviders.reversed) {
+      final Rect? rect = provider();
+      if (rect != null) {
+        return rect;
+      }
+    }
+    return null;
+  }
+
   Timer? _timer;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
@@ -243,6 +295,26 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
           break;
+        case VideoEventType.pipStarted:
+          _isPipActive = true;
+          notifyListeners();
+          onPipActiveChanged?.call(true);
+          break;
+        case VideoEventType.pipStopped:
+          _isPipActive = false;
+          notifyListeners();
+          onPipActiveChanged?.call(false);
+          break;
+        case VideoEventType.pipRestoreUserInterface:
+          _completePipRestore();
+          break;
+        case VideoEventType.autoPipChanged:
+          _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
+          notifyListeners();
+          break;
+        case VideoEventType.isPlayingStateUpdate:
+          value = value.copyWith(isPlaying: event.isPlaying ?? false);
+          break;
         case VideoEventType.unknown:
           break;
       }
@@ -260,6 +332,8 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     _eventSubscription = _platform
         .videoEventsFor(_textureId)
         .listen(eventListener, onError: errorListener);
+
+    setAutoPictureInPicture(_isAutoPipEnabled);
     return initializingCompleter.future;
   }
 
@@ -271,6 +345,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
       await _eventSubscription?.cancel();
       await _platform.dispose(_textureId);
     }
+    _pipSourceRectProviders.clear();
     super.dispose();
   }
 
@@ -342,9 +417,31 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     value = value.copyWith(position: position);
   }
 
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
+  /// Stops Picture-in-Picture mode.
+  Future<void> stopPictureInPicture() {
+    return _platform.stopPictureInPicture(
+      _textureId,
+      sourceRect: _resolvePipSourceRect(),
+    );
+  }
+
+  /// Sets whether Picture-in-Picture should start automatically when the app
+  /// enters background.
+  Future<void> setAutoPictureInPicture(bool enabled) {
+    return _platform.setAutoPictureInPicture(_textureId, enabled);
+  }
+
+  void _completePipRestore() {
+    final Rect? rect = _resolvePipSourceRect();
+    if (rect != null) {
+      _platform.completePipRestoreWithSourceRect(
+        _textureId,
+        rect.left,
+        rect.top,
+        rect.width,
+        rect.height,
+      );
+    }
   }
 }
 
@@ -377,6 +474,19 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
   late int _textureId;
 
+  final GlobalKey _textureKey = GlobalKey();
+
+  Rect? _getSourceRect() {
+    final RenderBox? renderBox =
+        _textureKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return null;
+    }
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+        offset.dx, offset.dy, renderBox.size.width, renderBox.size.height);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -384,27 +494,34 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
+    oldWidget.controller.removePipSourceRectProvider(_getSourceRect);
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
+    widget.controller.removePipSourceRectProvider(_getSourceRect);
   }
 
   @override
   Widget build(BuildContext context) {
     return _textureId == MiniController.kUninitializedTextureId
         ? Container()
-        : _platform.buildView(_textureId);
+        : KeyedSubtree(
+            key: _textureKey,
+            child: _platform.buildView(_textureId),
+          );
   }
 }
 

@@ -18,7 +18,58 @@ void main() {
   );
 }
 
-class _App extends StatelessWidget {
+class _App extends StatefulWidget {
+  @override
+  State<_App> createState() => _AppState();
+}
+
+class _AppState extends State<_App> {
+  late VideoPlayerController _remoteController;
+  late VideoPlayerController _assetController;
+
+  @override
+  void initState() {
+    super.initState();
+    _remoteController = VideoPlayerController.network(
+      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+      closedCaptionFile: _loadCaptions(),
+      // videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      // iOSのPicture-in-Pictureでスキップ(早送り/巻き戻し)ボタンを隠す場合はtrueにする。
+      videoPlayerOptions: VideoPlayerOptions(requiresLinearPlayback: true),
+    );
+    _assetController = VideoPlayerController.asset('assets/Butterfly-209.mp4');
+
+    _remoteController.addListener(_onStateChanged);
+    _assetController.addListener(_onStateChanged);
+
+    _remoteController.setLooping(true);
+    _remoteController.initialize();
+
+    _assetController.setLooping(true);
+    _assetController.initialize().then((_) => setState(() {}));
+    _assetController.play();
+  }
+
+  Future<ClosedCaptionFile> _loadCaptions() async {
+    final String fileContents = await DefaultAssetBundle.of(context)
+        .loadString('assets/bumble_bee_captions.vtt');
+    return WebVTTCaptionFile(
+        fileContents); // For vtt files, use WebVTTCaptionFile
+  }
+
+  void _onStateChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _remoteController.removeListener(_onStateChanged);
+    _assetController.removeListener(_onStateChanged);
+    _remoteController.dispose();
+    _assetController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -55,8 +106,8 @@ class _App extends StatelessWidget {
         ),
         body: TabBarView(
           children: <Widget>[
-            _BumbleBeeRemoteVideo(),
-            _ButterFlyAssetVideo(),
+            _BumbleBeeRemoteVideo(controller: _remoteController),
+            _ButterFlyAssetVideo(controller: _assetController),
             _ButterFlyAssetVideoInList(),
           ],
         ),
@@ -89,7 +140,7 @@ class _ButterFlyAssetVideoInList extends StatelessWidget {
                   alignment: FractionalOffset.bottomRight +
                       const FractionalOffset(-0.1, -0.1),
                   children: <Widget>[
-                    _ButterFlyAssetVideo(),
+                    _ButterFlyAssetVideoStandalone(),
                     Image.asset('assets/flutter-mark-square-64.png'),
                   ]),
             ],
@@ -105,57 +156,21 @@ class _ButterFlyAssetVideoInList extends StatelessWidget {
   }
 }
 
-/// A filler card to show the video in a list of scrolling contents.
-class _ExampleCard extends StatelessWidget {
-  const _ExampleCard({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
+/// A standalone asset video widget that manages its own controller (used in list).
+class _ButterFlyAssetVideoStandalone extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            leading: const Icon(Icons.airline_seat_flat_angled),
-            title: Text(title),
-          ),
-          ButtonBar(
-            children: <Widget>[
-              TextButton(
-                child: const Text('BUY TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-              TextButton(
-                child: const Text('SELL TICKETS'),
-                onPressed: () {
-                  /* ... */
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  _ButterFlyAssetVideoStandaloneState createState() =>
+      _ButterFlyAssetVideoStandaloneState();
 }
 
-class _ButterFlyAssetVideo extends StatefulWidget {
-  @override
-  _ButterFlyAssetVideoState createState() => _ButterFlyAssetVideoState();
-}
-
-class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
+class _ButterFlyAssetVideoStandaloneState
+    extends State<_ButterFlyAssetVideoStandalone> {
   late VideoPlayerController _controller;
 
   @override
   void initState() {
     super.initState();
     _controller = VideoPlayerController.asset('assets/Butterfly-209.mp4');
-
     _controller.addListener(() {
       setState(() {});
     });
@@ -175,9 +190,7 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
-          Container(
-            padding: const EdgeInsets.only(top: 20.0),
-          ),
+          const SizedBox(height: 20.0),
           const Text('With assets mp4'),
           Container(
             padding: const EdgeInsets.all(20),
@@ -199,65 +212,192 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
   }
 }
 
-class _BumbleBeeRemoteVideo extends StatefulWidget {
+/// A filler card to show the video in a list of scrolling contents.
+class _ExampleCard extends StatelessWidget {
+  const _ExampleCard({Key? key, required this.title}) : super(key: key);
+
+  final String title;
+
   @override
-  _BumbleBeeRemoteVideoState createState() => _BumbleBeeRemoteVideoState();
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          ListTile(
+            leading: const Icon(Icons.airline_seat_flat_angled),
+            title: Text(title),
+          ),
+          OverflowBar(
+            children: <Widget>[
+              TextButton(
+                child: const Text('BUY TICKETS'),
+                onPressed: () {
+                  /* ... */
+                },
+              ),
+              TextButton(
+                child: const Text('SELL TICKETS'),
+                onPressed: () {
+                  /* ... */
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
-  late VideoPlayerController _controller;
+class _ButterFlyAssetVideo extends StatelessWidget {
+  const _ButterFlyAssetVideo({Key? key, required this.controller})
+      : super(key: key);
 
-  Future<ClosedCaptionFile> _loadCaptions() async {
-    final String fileContents = await DefaultAssetBundle.of(context)
-        .loadString('assets/bumble_bee_captions.vtt');
-    return WebVTTCaptionFile(
-        fileContents); // For vtt files, use WebVTTCaptionFile
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.network(
-      'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-      closedCaptionFile: _loadCaptions(),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-
-    _controller.addListener(() {
-      setState(() {});
-    });
-    _controller.setLooping(true);
-    _controller.initialize();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final VideoPlayerController controller;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         children: <Widget>[
-          Container(padding: const EdgeInsets.only(top: 20.0)),
-          const Text('With remote mp4'),
+          const SizedBox(height: 20.0),
+          const Text('With assets mp4'),
           Container(
             padding: const EdgeInsets.all(20),
             child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
+              aspectRatio: controller.value.aspectRatio,
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: <Widget>[
-                  VideoPlayer(_controller),
-                  ClosedCaption(text: _controller.value.caption.text),
-                  _ControlsOverlay(controller: _controller),
-                  VideoProgressIndicator(_controller, allowScrubbing: true),
+                  VideoPlayer(controller),
+                  _ControlsOverlay(controller: controller),
+                  VideoProgressIndicator(controller, allowScrubbing: true),
                 ],
               ),
             ),
           ),
+          _PipControls(controller: controller),
+        ],
+      ),
+    );
+  }
+}
+
+class _BumbleBeeRemoteVideo extends StatelessWidget {
+  const _BumbleBeeRemoteVideo({Key? key, required this.controller})
+      : super(key: key);
+
+  final VideoPlayerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        children: <Widget>[
+          const SizedBox(height: 20.0),
+          const Text('With remote mp4'),
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: <Widget>[
+                  VideoPlayer(controller),
+                  ClosedCaption(text: controller.value.caption.text),
+                  _ControlsOverlay(controller: controller),
+                  VideoProgressIndicator(controller, allowScrubbing: true),
+                ],
+              ),
+            ),
+          ),
+          Text(controller.value.isPlaying ? 'Playing' : 'Paused'),
+          _PipControls(controller: controller),
+          for (final int i in List<int>.generate(10, (int index) => index))
+            Container(
+              height: 100,
+              color: i.isEven ? Colors.amberAccent : Colors.blueAccent,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PipControls extends StatefulWidget {
+  const _PipControls({Key? key, required this.controller}) : super(key: key);
+
+  final VideoPlayerController controller;
+
+  @override
+  State<_PipControls> createState() => _PipControlsState();
+}
+
+class _PipControlsState extends State<_PipControls> {
+  // requiresLinearPlaybackはネイティブ側からの読み戻しイベントが無いため、
+  // UI側でローカルに状態を保持する。初期値はVideoPlayerOptionsで渡した値と揃える。
+  bool _requiresLinearPlayback = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Picture-in-Picture',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text('Active: ${widget.controller.value.isPipActive}'),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: widget.controller.value.isPipActive
+                ? () => widget.controller.stopPictureInPicture()
+                : null,
+            icon: const Icon(Icons.fullscreen_exit),
+            label: const Text('Stop PiP'),
+          ),
+          SwitchListTile(
+            title: const Text('Require Linear Playback'),
+            subtitle: const Text('PiPウィンドウのスキップボタンを隠す(iOSのみ)'),
+            value: _requiresLinearPlayback,
+            onChanged: (bool requiresLinearPlayback) {
+              setState(() {
+                _requiresLinearPlayback = requiresLinearPlayback;
+              });
+              widget.controller
+                  .setRequiresLinearPlayback(requiresLinearPlayback);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Auto PiP'),
+            value: widget.controller.value.isAutoPipEnabled,
+            onChanged: (bool enabled) {
+              widget.controller.setAutoPictureInPicture(enabled);
+            },
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -337,9 +477,6 @@ class _ControlsOverlay extends StatelessWidget {
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                // Using less vertical padding as the text is also longer
-                // horizontally, so it feels like it would need more spacing
-                // horizontally (matching the aspect ratio of the video).
                 vertical: 12,
                 horizontal: 16,
               ),
@@ -366,9 +503,6 @@ class _ControlsOverlay extends StatelessWidget {
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                // Using less vertical padding as the text is also longer
-                // horizontally, so it feels like it would need more spacing
-                // horizontally (matching the aspect ratio of the video).
                 vertical: 12,
                 horizontal: 16,
               ),

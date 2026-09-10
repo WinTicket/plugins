@@ -23,6 +23,7 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   VolumeMessage? volumeMessage;
   PlaybackSpeedMessage? playbackSpeedMessage;
   MixWithOthersMessage? mixWithOthersMessage;
+  PipStopMessage? pipStopMessage;
 
   @override
   TextureMessage create(CreateMessage arg) {
@@ -68,7 +69,7 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void seekTo(PositionMessage arg) {
+  Future<void> seekTo(PositionMessage arg) async {
     log.add('seekTo');
     positionMessage = arg;
   }
@@ -89,6 +90,48 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   void setPlaybackSpeed(PlaybackSpeedMessage arg) {
     log.add('setPlaybackSpeed');
     playbackSpeedMessage = arg;
+  }
+
+  @override
+  DurationMessage duration(TextureMessage arg) {
+    log.add('duration');
+    textureMessage = arg;
+    return DurationMessage(textureId: arg.textureId, duration: 10000);
+  }
+
+  @override
+  StartMessage start(TextureMessage arg) {
+    log.add('start');
+    textureMessage = arg;
+    return StartMessage(textureId: arg.textureId, start: 0);
+  }
+
+  @override
+  void setBuffer(BufferMessage arg) {
+    log.add('setBuffer');
+  }
+
+  @override
+  void setMaxVideoResolution(MaxVideoResolutionMessage arg) {
+    log.add('setMaxVideoResolution');
+  }
+
+  @override
+  IsPlayingMessage isPlaying(TextureMessage arg) {
+    log.add('isPlaying');
+    textureMessage = arg;
+    return IsPlayingMessage(textureId: arg.textureId, isPlaying: true);
+  }
+
+  @override
+  void stopPictureInPicture(PipStopMessage arg) {
+    log.add('stopPictureInPicture');
+    pipStopMessage = arg;
+  }
+
+  @override
+  void setAutoPictureInPicture(PipStatusMessage arg) {
+    log.add('setAutoPictureInPicture');
   }
 }
 
@@ -223,14 +266,39 @@ void main() {
       await player.seekTo(1, const Duration(milliseconds: 12345));
       expect(log.log.last, 'seekTo');
       expect(log.positionMessage?.textureId, 1);
+      // seekTo adds startDuration (0) to position
       expect(log.positionMessage?.position, 12345);
     });
 
     test('getPosition', () async {
       final Duration position = await player.getPosition(1);
-      expect(log.log.last, 'position');
+      // getPosition calls position then start, so last log is 'start'
+      expect(log.log, contains('position'));
       expect(log.textureMessage?.textureId, 1);
+      // position returns 234, start returns 0, so result is 234 - 0 = 234
       expect(position, const Duration(milliseconds: 234));
+    });
+
+    test('stopPictureInPicture', () async {
+      await player.stopPictureInPicture(
+        1,
+        sourceRect: const Rect.fromLTWH(10, 20, 320, 180),
+      );
+      expect(log.log.last, 'stopPictureInPicture');
+      expect(log.pipStopMessage?.textureId, 1);
+      expect(log.pipStopMessage?.x, 10);
+      expect(log.pipStopMessage?.y, 20);
+      expect(log.pipStopMessage?.width, 320);
+      expect(log.pipStopMessage?.height, 180);
+    });
+
+    test('stopPictureInPicture without source rect', () async {
+      await player.stopPictureInPicture(1);
+      expect(log.pipStopMessage?.textureId, 1);
+      expect(log.pipStopMessage?.x, isNull);
+      expect(log.pipStopMessage?.y, isNull);
+      expect(log.pipStopMessage?.width, isNull);
+      expect(log.pipStopMessage?.height, isNull);
     });
 
     test('videoEventsFor', () async {
@@ -299,6 +367,37 @@ void main() {
                     }),
                     (ByteData? data) {});
 
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'isPlayingStateUpdate',
+                      'isPlaying': false,
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'pipStarted',
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'pipStopped',
+                    }),
+                    (ByteData? data) {});
+
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
           } else if (methodCall.method == 'cancel') {
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
@@ -330,6 +429,12 @@ void main() {
                 ]),
             VideoEvent(eventType: VideoEventType.bufferingStart),
             VideoEvent(eventType: VideoEventType.bufferingEnd),
+            VideoEvent(
+              eventType: VideoEventType.isPlayingStateUpdate,
+              isPlaying: false,
+            ),
+            VideoEvent(eventType: VideoEventType.pipStarted),
+            VideoEvent(eventType: VideoEventType.pipStopped),
           ]));
     });
   });

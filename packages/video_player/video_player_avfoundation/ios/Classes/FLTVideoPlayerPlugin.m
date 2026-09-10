@@ -5,6 +5,7 @@
 #import "FLTVideoPlayerPlugin.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
 
 #import "AVAssetTrackUtils.h"
@@ -33,7 +34,7 @@
 }
 @end
 
-@interface FLTVideoPlayer : NSObject <FlutterTexture, FlutterStreamHandler>
+@interface FLTVideoPlayer : NSObject <FlutterTexture, FlutterStreamHandler, AVPictureInPictureControllerDelegate>
 @property(readonly, nonatomic) AVPlayer *player;
 @property(readonly, nonatomic) AVPlayerItemVideoOutput *videoOutput;
 @property(readonly, nonatomic) CADisplayLink *displayLink;
@@ -48,6 +49,18 @@
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers;
 - (void)setPreferredMaximumResolutionWidth:(NSNumber *)width height:(NSNumber *)height;
+@property(nonatomic, strong) AVPictureInPictureController *pipController;
+@property(nonatomic, strong) AVPlayerLayer *pipPlayerLayer;
+/// Held during PiP restore to defer completionHandler until Dart sends source rect.
+@property(nonatomic, copy) void (^pipRestoreCompletionHandler)(BOOL);
+/// AVPictureInPictureController.requiresLinearPlayback に設定したい値。
+/// setter が呼ばれた時点で _pipController が未生成の場合があるため保持しておき、
+/// setupPictureInPicture 実行時、もしくは controller が既に存在する場合は即時に反映する。
+@property(nonatomic) BOOL requiresLinearPlayback;
+/// stopPictureInPicture() は非同期のため、呼び出し直後に delegate/controller を
+/// 破棄すると pictureInPictureControllerDidStopPictureInPicture: が呼ばれなくなる。
+/// このフラグが YES の間は、実際の解放をそのコールバック側で行う。
+@property(nonatomic) BOOL pipTeardownPending;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -57,6 +70,19 @@ static void *durationContext = &durationContext;
 static void *playbackLikelyToKeepUpContext = &playbackLikelyToKeepUpContext;
 static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
+static void *rateContext = &rateContext;
+static void *timeControlStatusContext = &timeControlStatusContext;
+static const CGFloat kPipRestoreVisibleEdge = 2.0;
+static const NSTimeInterval kPipRestoreSourceRectTimeout = 0.5;
+/// pictureInPictureControllerDidStopPictureInPicture: が発火しなかった場合
+/// (アプリ強制終了、controller の早期 dealloc、システム割り込み等) に備えた
+/// teardown の強制実行までの待機時間。通常の停止アニメーションより十分長く取る。
+static const NSTimeInterval kPipTeardownTimeout = 1.5;
+/// PiP 復帰アニメーション中に _pipPlayerLayer へ適用する角丸の半径。
+/// Dart 側で動画フレームに角丸 (ClipRRect 等) を付けている場合、
+/// 復帰アニメーションの最後で Flutter の Texture に切り替わった際に
+/// 角の丸みが変わって見えないよう、同じ値を揃えること。
+static const CGFloat kPipCornerRadius = 16.0;
 
 @implementation FLTVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset frameUpdater:(FLTFrameUpdater *)frameUpdater {
@@ -65,6 +91,14 @@ static void *playbackBufferFullContext = &playbackBufferFullContext;
 }
 
 - (void)addObservers:(AVPlayerItem *)item {
+  [_player addObserver:self
+            forKeyPath:@"rate"
+               options:NSKeyValueObservingOptionNew
+               context:rateContext];
+  [_player addObserver:self
+            forKeyPath:@"timeControlStatus"
+               options:NSKeyValueObservingOptionNew
+               context:timeControlStatusContext];
   [item addObserver:self
          forKeyPath:@"loadedTimeRanges"
             options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
@@ -191,6 +225,16 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return [self initWithPlayerItem:item frameUpdater:frameUpdater];
 }
 
+- (void)dealloc {
+  // pictureInPictureControllerDidStopPictureInPicture: / タイムアウトのどちらも
+  // 発火しないまま self が破棄されるケースに備えた最終防衛ライン。
+  // _pipPlayerLayer は superlayer 側から強参照されているため、明示的に
+  // removeFromSuperlayer しないと self が消えた後もキーウィンドウの layer
+  // ツリーに残留し続けてしまう。
+  _pipController.delegate = nil;
+  [_pipPlayerLayer removeFromSuperlayer];
+}
+
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
                       frameUpdater:(FLTFrameUpdater *)frameUpdater {
   self = [super init];
@@ -233,6 +277,10 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [self addObservers:item];
 
   [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
+
+  // PiP setup is deferred to setAutoPictureInPicture
+  // to avoid creating multiple AVPictureInPictureControllers simultaneously,
+  // which causes isPictureInPicturePossible to return NO on iOS.
 
   return self;
 }
@@ -299,6 +347,29 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   } else if (context == playbackBufferFullContext) {
     if (_eventSink != nil) {
       _eventSink(@{@"event" : @"bufferingEnd"});
+    }
+  } else if (context == rateContext) {
+    AVPlayer *player = (AVPlayer *)object;
+    if (_eventSink != nil) {
+      _eventSink(@{
+        @"event" : @"isPlayingStateUpdate",
+        @"isPlaying" : player.rate > 0 ? @YES : @NO
+      });
+    }
+  } else if (context == timeControlStatusContext) {
+    AVPlayer *player = (AVPlayer *)object;
+    // OS PiP のコントロールは play/pause API を経由せず AVPlayer を直接操作するため、
+    // 放置すると直後の updatePlayingState が古い _isPlaying で操作を打ち消す
+    // PiP 表示中に意図の乖離 (waiting はバッファ待ちなので再生意図扱い) を検知したら追従し、Dart へ通知する。
+    BOOL wantsToPlay = player.timeControlStatus != AVPlayerTimeControlStatusPaused;
+    if ([_pipController isPictureInPictureActive] && wantsToPlay != _isPlaying) {
+      _isPlaying = wantsToPlay;
+      if (_eventSink != nil) {
+        _eventSink(@{
+          @"event" : @"playbackIntentUpdate",
+          @"isPlaying" : wantsToPlay ? @YES : @NO
+        });
+      }
     }
   }
 }
@@ -402,6 +473,329 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return _player.rate > 0;
 }
 
+#pragma mark - Picture-in-Picture
+
+- (void)setupPictureInPicture {
+  if (@available(iOS 14.2, *)) {
+    if (_pipController) {
+      return;
+    }
+    if (![AVPictureInPictureController isPictureInPictureSupported]) {
+      return;
+    }
+    // Reuse the existing invisible player layer (same pattern as upstream).
+    // The layer is added to the Flutter view controller's root layer so that
+    // AVPictureInPictureController can use it for texture-based rendering.
+    if (!_pipPlayerLayer) {
+      _pipPlayerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
+      _pipPlayerLayer.frame = CGRectZero;
+      _pipPlayerLayer.cornerRadius = kPipCornerRadius;
+      _pipPlayerLayer.masksToBounds = YES;
+      if (@available(iOS 13.0, *)) {
+        _pipPlayerLayer.cornerCurve = kCACornerCurveContinuous;
+      }
+      UIWindow *keyWindow = nil;
+      for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+          UIWindowScene *windowScene = (UIWindowScene *)scene;
+          for (UIWindow *window in windowScene.windows) {
+            if (window.isKeyWindow) {
+              keyWindow = window;
+              break;
+            }
+          }
+        }
+        if (keyWindow) break;
+      }
+      if (keyWindow) {
+        [keyWindow.rootViewController.view.layer addSublayer:_pipPlayerLayer];
+      }
+    }
+    _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:_pipPlayerLayer];
+    _pipController.requiresLinearPlayback = _requiresLinearPlayback;
+    _pipController.delegate = self;
+  }
+}
+
+- (void)tearDownPictureInPicture {
+  // Release any pending completionHandler to prevent leaks during dispose.
+  self.pipRestoreCompletionHandler = nil;
+
+  if (_pipController) {
+    if ([_pipController isPictureInPictureActive]) {
+      // stopPictureInPicture() は非同期。ここで delegate/controller を破棄すると
+      // 停止完了時の pictureInPictureControllerDidStopPictureInPicture: が
+      // 飛ばなくなり、pipStopped イベントや再生状態の同期が漏れる。
+      // 実際の解放はそのコールバック側 (completePipTeardownIfNeeded) で行う。
+      _pipTeardownPending = YES;
+      [_pipController stopPictureInPicture];
+
+      // コールバックが発火しない場合 (アプリ強制終了、controller の早期 dealloc、
+      // システム割り込み等) の安全網。_pipPlayerLayer がキーウィンドウの
+      // layer ツリーに残留し続けるリーク・寿命超過を防ぐ。
+      __weak typeof(self) weakSelf = self;
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kPipTeardownTimeout * NSEC_PER_SEC)),
+                     dispatch_get_main_queue(), ^{
+        [weakSelf completePipTeardownIfNeeded];
+      });
+      return;
+    }
+    _pipController.delegate = nil;
+    _pipController = nil;
+  }
+  // Remove the playerLayer only on full dispose. Keep it alive for PiP reuse.
+  [_pipPlayerLayer removeFromSuperlayer];
+  _pipPlayerLayer = nil;
+}
+
+/// tearDownPictureInPicture から委譲された、PiP 停止完了後の実解放処理。
+/// pictureInPictureControllerDidStopPictureInPicture: とタイムアウトの
+/// どちらから呼ばれても安全なよう冪等にしてある。
+- (void)completePipTeardownIfNeeded {
+  if (!_pipTeardownPending) {
+    return;
+  }
+  _pipTeardownPending = NO;
+  _pipController.delegate = nil;
+  _pipController = nil;
+  [_pipPlayerLayer removeFromSuperlayer];
+  _pipPlayerLayer = nil;
+}
+
+- (void)stopPictureInPictureWithSourceRect:(CGRect)sourceRect {
+  if (!_pipController || ![_pipController isPictureInPictureActive]) {
+    return;
+  }
+
+  if ([self isValidPipRestoreRect:sourceRect]) {
+    CGRect targetRect = [self rectByKeepingPipRestoreVisible:sourceRect];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    _pipPlayerLayer.frame = targetRect;
+    _pipPlayerLayer.hidden = NO;
+    [CATransaction commit];
+  }
+
+  [_pipController stopPictureInPicture];
+}
+
+- (void)setAutoPictureInPicture:(BOOL)enabled {
+  if (@available(iOS 14.2, *)) {
+    if (enabled) {
+      // Auto PiP 有効化: AVPlayerLayer と AVPictureInPictureController を setup し、
+      // layer を Root Window に attach した上で 1x1 frame を与える。iOS はこれを
+      // "playing inline" と認識し、bg 遷移時に自動 PiP を起動する。
+      if (!_pipController) {
+        [self setupPictureInPicture];
+      }
+      if (_pipController) {
+        // Auto PiP requires the AVPlayerLayer to have a non-zero frame so that
+        // iOS considers the player to be "playing inline". With CGRectZero the
+        // system never triggers automatic PiP on app backgrounding.
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+        [CATransaction commit];
+        _pipController.canStartPictureInPictureAutomaticallyFromInline = YES;
+        // layer が Root Window に attach されたまま bg 遷移すると、既定の
+        // AVPlayerAudiovisualBackgroundPlaybackPolicyAutomatic は「映像プレイヤーは
+        // 停止する」と判断し、PiP が起動しないケース (画面ロック等) で音声が止まる。
+        // auto PiP 有効時のみ継続を宣言する。
+        if (@available(iOS 15.0, *)) {
+          _player.audiovisualBackgroundPlaybackPolicy =
+              AVPlayerAudiovisualBackgroundPlaybackPolicyContinuesIfPossible;
+        }
+      }
+    } else {
+      if (@available(iOS 15.0, *)) {
+        _player.audiovisualBackgroundPlaybackPolicy =
+            AVPlayerAudiovisualBackgroundPlaybackPolicyAutomatic;
+      }
+      if ([_pipController isPictureInPictureActive]) {
+        _pipController.canStartPictureInPictureAutomaticallyFromInline = NO;
+      } else {
+        [self tearDownPictureInPicture];
+      }
+    }
+  }
+  if (_eventSink) {
+    _eventSink(@{
+      @"event" : @"autoPipChanged",
+      @"enabled" : @(enabled)
+    });
+  }
+}
+
+- (void)setRequiresLinearPlayback:(BOOL)requiresLinearPlayback {
+  _requiresLinearPlayback = requiresLinearPlayback;
+  if (_pipController) {
+    // Controller が既に存在する場合は即時反映する。まだ存在しない場合は
+    // setupPictureInPicture 実行時に _requiresLinearPlayback の値が使われる。
+    _pipController.requiresLinearPlayback = requiresLinearPlayback;
+  }
+}
+
+#pragma mark - AVPictureInPictureControllerDelegate
+
+- (void)pictureInPictureControllerWillStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+}
+
+- (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  // Restore the 1x1 frame required for auto PiP if it was reset during setup.
+  if (@available(iOS 14.2, *)) {
+    if (_pipController.canStartPictureInPictureAutomaticallyFromInline &&
+        CGRectIsEmpty(_pipPlayerLayer.frame)) {
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
+      _pipPlayerLayer.frame = CGRectMake(0, 0, 1, 1);
+      [CATransaction commit];
+    }
+  }
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipStarted"});
+  }
+}
+
+/// rect がレイヤーに設定可能な有限値かを判定する。
+- (BOOL)isValidPipRestoreRect:(CGRect)rect {
+  if (CGRectIsNull(rect) || CGRectIsInfinite(rect)) {
+    return NO;
+  }
+  if (!isfinite(rect.origin.x) || !isfinite(rect.origin.y) ||
+      !isfinite(rect.size.width) || !isfinite(rect.size.height)) {
+    return NO;
+  }
+  if (rect.size.width <= 0 || rect.size.height <= 0) {
+    return NO;
+  }
+  return YES;
+}
+
+/// PiP の復帰先が画面外でも、サイズを変えずに端だけを画面内に残す。
+- (CGRect)rectByKeepingPipRestoreVisible:(CGRect)rect {
+  CALayer *superlayer = _pipPlayerLayer.superlayer;
+  if (!superlayer || CGRectIsEmpty(superlayer.bounds)) {
+    return rect;
+  }
+
+  CGRect bounds = superlayer.bounds;
+  CGFloat visibleWidth = MIN(kPipRestoreVisibleEdge, MIN(rect.size.width, bounds.size.width));
+  CGFloat visibleHeight = MIN(kPipRestoreVisibleEdge, MIN(rect.size.height, bounds.size.height));
+  CGFloat minX = CGRectGetMinX(bounds) - rect.size.width + visibleWidth;
+  CGFloat maxX = CGRectGetMaxX(bounds) - visibleWidth;
+  CGFloat minY = CGRectGetMinY(bounds) - rect.size.height + visibleHeight;
+  CGFloat maxY = CGRectGetMaxY(bounds) - visibleHeight;
+
+  return CGRectMake(MIN(MAX(rect.origin.x, minX), maxX),
+                    MIN(MAX(rect.origin.y, minY), maxY),
+                    rect.size.width,
+                    rect.size.height);
+}
+
+/// source rect が使えない場合でも、画面を覆わずに PiP 復帰を完了する。
+- (void)completePipRestoreWithoutSourceRect {
+  // 縮小先を無効化しておく。
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  _pipPlayerLayer.frame = CGRectZero;
+  [CATransaction commit];
+
+  void (^completionHandler)(BOOL) = self.pipRestoreCompletionHandler;
+  self.pipRestoreCompletionHandler = nil;
+  if (completionHandler) {
+    completionHandler(YES);
+  }
+
+  // completionHandler 直後に hidden にすることで縮小アニメーション自体を視覚的に消す。
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  _pipPlayerLayer.hidden = YES;
+  [CATransaction commit];
+}
+
+- (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+  // Clean up completionHandler if it wasn't called (e.g. user tapped close button).
+  self.pipRestoreCompletionHandler = nil;
+
+  // PiP の停止後に source rect を外し、次回の auto PiP 用の状態へ戻す。
+  if (@available(iOS 14.2, *)) {
+    BOOL needsAutoPip = _pipController.canStartPictureInPictureAutomaticallyFromInline;
+    CGRect targetFrame = needsAutoPip ? CGRectMake(0, 0, 1, 1) : CGRectZero;
+
+    [_pipPlayerLayer removeAllAnimations];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [CATransaction setAnimationDuration:0];
+    _pipPlayerLayer.frame = targetFrame;
+    _pipPlayerLayer.hidden = NO;
+    [CATransaction commit];
+  }
+
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipStopped"});
+  }
+  [self updatePlayingState];
+
+  [self completePipTeardownIfNeeded];
+}
+
+- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
+    restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
+  // Hold the completionHandler and wait for Dart to send the video source rect.
+  // This allows PiP to animate back to the correct video position.
+  self.pipRestoreCompletionHandler = completionHandler;
+
+  if (_eventSink) {
+    _eventSink(@{@"event" : @"pipRestoreUserInterface"});
+  }
+
+  // Timeout: if Dart doesn't respond within 0.5s, complete without a source rect.
+  __weak typeof(self) weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                               (int64_t)(kPipRestoreSourceRectTimeout * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf) return;
+    if (strongSelf.pipRestoreCompletionHandler) {
+      [strongSelf completePipRestoreWithoutSourceRect];
+    }
+  });
+}
+
+- (void)completePipRestoreWithSourceRect:(CGRect)rect {
+  if (!self.pipRestoreCompletionHandler) {
+    return;
+  }
+
+  if (![self isValidPipRestoreRect:rect]) {
+    // 不正値の場合はレイヤーに設定せず、画面を覆わずに復帰を完了する。
+    [self completePipRestoreWithoutSourceRect];
+    return;
+  }
+
+  CGRect targetRect = [self rectByKeepingPipRestoreVisible:rect];
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  _pipPlayerLayer.frame = targetRect;
+  _pipPlayerLayer.hidden = NO;
+  [CATransaction commit];
+
+  void (^completionHandler)(BOOL) = self.pipRestoreCompletionHandler;
+  self.pipRestoreCompletionHandler = nil;
+  completionHandler(YES);
+
+  // rect は didStopPictureInPicture で PiP 停止後に reset する。
+}
+
+- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController failedToStartPictureInPictureWithError:(NSError *)error {
+  if (_eventSink) {
+    _eventSink([FlutterError errorWithCode:@"PipError"
+                                   message:[NSString stringWithFormat:@"Failed to start Picture-in-Picture: %@",
+                                                                       error.localizedDescription]
+                                   details:nil]);
+  }
+}
+
 - (int64_t)duration {
   // AndroidのDurationはライブ配信と過去動画でいい感じに数字を返してくれるが
   // iOSでは
@@ -410,26 +804,24 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   // を利用する必要がある。seekableTimeRangesが有無で条件分岐する
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
-     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
-     return FLTCMTimeToMillis(seekableDuration.duration);
-  }
-  else {
-     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+    CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+    return FLTCMTimeToMillis(seekableDuration.duration);
+  } else {
+    return FLTCMTimeToMillis(_player.currentItem.asset.duration);
   }
 }
 
 - (int64_t)durationStartAt {
   NSValue *seekableRange = _player.currentItem.seekableTimeRanges.lastObject;
   if (seekableRange) {
-     CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
-     return FLTCMTimeToMillis(seekableDuration.start);
-  }
-  else {
-     return FLTCMTimeToMillis(_player.currentItem.asset.duration);
+    CMTimeRange seekableDuration = [seekableRange CMTimeRangeValue];
+    return FLTCMTimeToMillis(seekableDuration.start);
+  } else {
+    return FLTCMTimeToMillis(_player.currentItem.asset.duration);
   }
 }
 
-- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler  {
+- (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler {
   // TODO(stuartmorgan): Update this to use completionHandler: to only return
   // once the seek operation is complete once the Pigeon API is updated to a
   // version that handles async calls.
@@ -507,7 +899,13 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 /// is useful for the case where the Engine is in the process of deconstruction
 /// so the channel is going to die or is already dead.
 - (void)disposeSansEventChannel {
+  // hot restart 等で dispose が二重に呼ばれることがあるため、初回以降は no-op にする
+  // (公式実装の FVPVideoPlayer.m と同じ対策)。
+  if (_disposed) {
+    return;
+  }
   _disposed = YES;
+  [self tearDownPictureInPicture];
   [_displayLink invalidate];
   AVPlayerItem *currentItem = self.player.currentItem;
   [currentItem removeObserver:self forKeyPath:@"status"];
@@ -517,6 +915,8 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [currentItem removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
   [currentItem removeObserver:self forKeyPath:@"playbackBufferEmpty"];
   [currentItem removeObserver:self forKeyPath:@"playbackBufferFull"];
+  [self.player removeObserver:self forKeyPath:@"rate"];
+  [self.player removeObserver:self forKeyPath:@"timeControlStatus"];
 
   [self.player replaceCurrentItemWithPlayerItem:nil];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -718,6 +1118,58 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
                                                             isPlaying:@([player getLatestIsPlaying])];
   return result;
+}
+
+- (void)tearDownPictureInPictureForAllPlayersExcept:(NSNumber *)textureId {
+  [self.playersByTextureId enumerateKeysAndObjectsUsingBlock:^(NSNumber *key, FLTVideoPlayer *player, BOOL *stop) {
+    if (![key isEqualToNumber:textureId]) {
+      // tearDownPictureInPicture を直接呼ぶと autoPipChanged イベントが送信されず、
+      // Dart 側の isAutoPipEnabled が true のまま実態と乖離してしまう。
+      // setAutoPictureInPicture: 経由にすることでイベント送信を保証する。
+      [player setAutoPictureInPicture:NO];
+    }
+  }];
+}
+
+- (void)stopPictureInPicture:(FLTPipStopMessage *)input error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  CGRect sourceRect = CGRectNull;
+  if (input.x && input.y && input.width && input.height) {
+    sourceRect = CGRectMake(input.x.doubleValue,
+                            input.y.doubleValue,
+                            input.width.doubleValue,
+                            input.height.doubleValue);
+  }
+  [player stopPictureInPictureWithSourceRect:sourceRect];
+}
+
+- (void)setAutoPictureInPicture:(FLTPipStatusMessage *)input
+                          error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  if (input.value.boolValue) {
+    // 他プレイヤーの PiP を先に teardown してから対象プレイヤーを有効化する
+    // (AVPictureInPictureController の複数同時生成による isPictureInPicturePossible=NO 回避)
+    [self tearDownPictureInPictureForAllPlayersExcept:input.textureId];
+  }
+  // setup / teardown は Player レベルの setAutoPictureInPicture: に委譲する
+  [player setAutoPictureInPicture:input.value.boolValue];
+}
+
+- (void)setRequiresLinearPlayback:(FLTPipStatusMessage *)input
+                             error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player setRequiresLinearPlayback:input.value.boolValue];
+}
+
+- (void)completePipRestoreWithSourceRect:(FLTPipSourceRectMessage *)input
+                                   error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  CGRect rect = CGRectMake(
+      input.x.doubleValue,
+      input.y.doubleValue,
+      input.width.doubleValue,
+      input.height.doubleValue);
+  [player completePipRestoreWithSourceRect:rect];
 }
 
 @end
