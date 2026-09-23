@@ -170,6 +170,24 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
 
+  /// Whether Picture-in-Picture is currently active.
+  bool _isPipActive = false;
+
+  /// Returns whether Picture-in-Picture is currently active.
+  bool get isPipActive => _isPipActive;
+
+  /// Whether auto Picture-in-Picture is currently enabled.
+  bool _isAutoPipEnabled = false;
+
+  /// Returns whether auto Picture-in-Picture is currently enabled.
+  bool get isAutoPipEnabled => _isAutoPipEnabled;
+
+  /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
+  ///
+  /// [isActive] が true の場合は PiP に入ったこと、false の場合は
+  /// PiP から出たことを示す。
+  void Function(bool isActive)? onPipActiveChanged;
+
   /// The id of a texture that hasn't been initialized.
   @visibleForTesting
   static const int kUninitializedTextureId = -1;
@@ -242,6 +260,20 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
+          break;
+        case VideoEventType.pipStarted:
+          _isPipActive = true;
+          notifyListeners();
+          onPipActiveChanged?.call(true);
+          break;
+        case VideoEventType.pipStopped:
+          _isPipActive = false;
+          notifyListeners();
+          onPipActiveChanged?.call(false);
+          break;
+        case VideoEventType.autoPipChanged:
+          _isAutoPipEnabled = event.isAutoPipEnabled ?? false;
+          notifyListeners();
           break;
         case VideoEventType.unknown:
           break;
@@ -342,10 +374,17 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     value = value.copyWith(position: position);
   }
 
-  @override
-  void removeListener(VoidCallback listener) {
-    super.removeListener(listener);
+  /// Stops Picture-in-Picture mode.
+  Future<void> stopPictureInPicture() {
+    return _platform.stopPictureInPicture(_textureId);
   }
+
+  /// Sets whether Picture-in-Picture should start automatically when the app
+  /// enters background.
+  Future<void> setAutoPictureInPicture(bool enabled) {
+    return _platform.setAutoPictureInPicture(_textureId, enabled);
+  }
+
 }
 
 /// Widget that displays the video controlled by [controller].

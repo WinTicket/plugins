@@ -7,10 +7,19 @@ package io.flutter.plugins.videoplayer;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
+import android.app.Activity;
+import android.app.PictureInPictureParams;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
+import android.util.Rational;
 import android.view.Surface;
+import androidx.annotation.ChecksSdkIntAtLeast;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
@@ -55,13 +64,18 @@ final class VideoPlayer {
   private static final String FORMAT_HLS = "hls";
   private static final String FORMAT_OTHER = "other";
 
+  /** A handler invoked when PiP mode is requested, to notify the plugin of the player ID. */
+  public interface PipRequestHandler {
+    void onPipRequested();
+  }
+
   private ExoPlayer exoPlayer;
 
   private Surface surface;
 
   private final TextureRegistry.SurfaceTextureEntry textureEntry;
 
-  private QueuingEventSink eventSink;
+  QueuingEventSink eventSink;
 
   private final EventChannel eventChannel;
 
@@ -70,6 +84,11 @@ final class VideoPlayer {
   private final VideoPlayerOptions options;
 
   private final DefaultTrackSelector trackSelector;
+
+  @Nullable VideoPlayerCallbacks videoPlayerCallbacks;
+  @Nullable private Activity activity;
+  @Nullable private PipRequestHandler pipRequestHandler;
+  private boolean autoPipEnabled = false;
 
   VideoPlayer(
       Context context,
@@ -255,6 +274,14 @@ final class VideoPlayer {
           }
 
           @Override
+          public void onIsPlayingChanged(boolean isPlaying) {
+            Map<String, Object> event = new HashMap<>();
+            event.put("event", "isPlayingStateUpdate");
+            event.put("isPlaying", isPlaying);
+            eventSink.success(event);
+          }
+
+          @Override
           public void onPlayerError(final PlaybackException error) {
             setBuffering(false);
             if (eventSink != null) {
@@ -328,6 +355,115 @@ final class VideoPlayer {
 
   boolean getIsPlaying() { return exoPlayer.isPlaying(); }
 
+  void setActivity(@Nullable Activity activity) {
+    this.activity = activity;
+  }
+
+  void setPipRequestHandler(@Nullable PipRequestHandler handler) {
+    this.pipRequestHandler = handler;
+  }
+
+  void stopPictureInPicture() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return;
+    }
+    if (activity == null || !activity.isInPictureInPictureMode()) {
+      return;
+    }
+    // Android has no direct "exit PiP" API. Bring the activity to front to restore full screen.
+    Intent intent = new Intent(activity, activity.getClass());
+    intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    activity.startActivity(intent);
+  }
+
+  void setAutoPictureInPicture(boolean enabled) {
+    boolean usesSystemAutoEnter = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
+    boolean effectiveEnabled = enabled && (!usesSystemAutoEnter || activity != null);
+
+    this.autoPipEnabled = effectiveEnabled;
+    if (effectiveEnabled
+        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && pipRequestHandler != null) {
+      pipRequestHandler.onPipRequested();
+    }
+
+    if (usesSystemAutoEnter && activity != null) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(effectiveEnabled)
+              .build();
+      activity.setPictureInPictureParams(params);
+    }
+
+    sendAutoPipChangedEvent(effectiveEnabled);
+  }
+
+  boolean isAutoPipEnabled() {
+    return autoPipEnabled;
+  }
+
+  /** Enters PiP explicitly on Android versions that do not support automatic PiP entry. */
+  boolean enterAutoPictureInPicture() {
+    if (!supportsExplicitAutoPictureInPicture()) {
+      return false;
+    }
+
+    Activity activity = this.activity;
+    if (activity == null || !isAutoPictureInPictureReady()) {
+      return false;
+    }
+
+    if (!canEnterPictureInPicture(activity)) {
+      return false;
+    }
+
+    PictureInPictureParams params =
+        new PictureInPictureParams.Builder().setAspectRatio(getVideoAspectRatio()).build();
+    try {
+      return activity.enterPictureInPictureMode(params);
+    } catch (IllegalStateException e) {
+      // Some OEM builds (e.g. Samsung Android 9 with TalkBack enabled) reject PiP in the
+      // system service even though FEATURE_PICTURE_IN_PICTURE is reported as supported.
+      return false;
+    }
+  }
+
+  @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.O)
+  static boolean supportsExplicitAutoPictureInPicture() {
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && Build.VERSION.SDK_INT < Build.VERSION_CODES.S;
+  }
+
+  private boolean isAutoPictureInPictureReady() {
+    return autoPipEnabled && getIsPlaying();
+  }
+
+  @RequiresApi(Build.VERSION_CODES.O)
+  private boolean canEnterPictureInPicture(@NonNull Activity activity) {
+    return !activity.isInPictureInPictureMode()
+        && activity
+            .getPackageManager()
+            .hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE);
+  }
+
+  /** Returns the video aspect ratio, defaulting to 16:9 if unavailable. */
+  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+  private Rational getVideoAspectRatio() {
+    Format videoFormat = exoPlayer.getVideoFormat();
+    if (videoFormat != null && videoFormat.width > 0 && videoFormat.height > 0) {
+      return new Rational(videoFormat.width, videoFormat.height);
+    }
+    return new Rational(16, 9);
+  }
+
+  private void sendAutoPipChangedEvent(boolean enabled) {
+    Map<String, Object> event = new HashMap<>();
+    event.put("event", "autoPipChanged");
+    event.put("enabled", enabled);
+    eventSink.success(event);
+  }
+
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
   void sendInitialized() {
@@ -359,13 +495,50 @@ final class VideoPlayer {
       }
 
       eventSink.success(event);
+
+      // Update PiP params with the actual video aspect ratio now that the
+      // video format is known. When setAutoPictureInPicture was called before
+      // initialization, getVideoAspectRatio() returned the 16:9 default.
+      updateAutoPipParams();
+    }
+  }
+
+  /** Re-applies auto PiP params with the current video aspect ratio if enabled. */
+  private void updateAutoPipParams() {
+    if (!autoPipEnabled || activity == null) {
+      return;
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(true)
+              .build();
+      activity.setPictureInPictureParams(params);
     }
   }
 
   void dispose() {
+    // auto PiP が有効なまま dispose されると、Activity 側の PictureInPictureParams
+    // (setAutoEnterEnabled(true)) が破棄済みプレイヤーを指したまま残ってしまい、
+    // 次回バックグラウンド遷移時に破棄済みの映像で PiP が自動起動しようとする恐れがある。
+    // activity を null 化する前に無効化しておく。
+    if (autoPipEnabled && activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      PictureInPictureParams params =
+          new PictureInPictureParams.Builder()
+              .setAspectRatio(getVideoAspectRatio())
+              .setAutoEnterEnabled(false)
+              .build();
+      activity.setPictureInPictureParams(params);
+    }
+    autoPipEnabled = false;
+    pipRequestHandler = null;
+    videoPlayerCallbacks = null;
+    activity = null;
     if (isInitialized) {
       exoPlayer.stop();
     }
+    isInitialized = false;
     textureEntry.release();
     eventChannel.setStreamHandler(null);
     if (surface != null) {

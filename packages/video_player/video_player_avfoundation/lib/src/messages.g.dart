@@ -319,6 +319,105 @@ class IsPlayingMessage {
   }
 }
 
+class PipStatusMessage {
+  PipStatusMessage({
+    required this.textureId,
+    required this.value,
+  });
+
+  int textureId;
+  bool value;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['value'] = value;
+    return pigeonMap;
+  }
+
+  static PipStatusMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipStatusMessage(
+      textureId: pigeonMap['textureId']! as int,
+      value: pigeonMap['value']! as bool,
+    );
+  }
+}
+
+class PipSourceRectMessage {
+  PipSourceRectMessage({
+    required this.textureId,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  int textureId;
+  double x;
+  double y;
+  double width;
+  double height;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['x'] = x;
+    pigeonMap['y'] = y;
+    pigeonMap['width'] = width;
+    pigeonMap['height'] = height;
+    return pigeonMap;
+  }
+
+  static PipSourceRectMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipSourceRectMessage(
+      textureId: pigeonMap['textureId']! as int,
+      x: pigeonMap['x']! as double,
+      y: pigeonMap['y']! as double,
+      width: pigeonMap['width']! as double,
+      height: pigeonMap['height']! as double,
+    );
+  }
+}
+
+class PipStopMessage {
+  PipStopMessage({
+    required this.textureId,
+    this.x,
+    this.y,
+    this.width,
+    this.height,
+  });
+
+  int textureId;
+  double? x;
+  double? y;
+  double? width;
+  double? height;
+
+  Object encode() {
+    final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['textureId'] = textureId;
+    pigeonMap['x'] = x;
+    pigeonMap['y'] = y;
+    pigeonMap['width'] = width;
+    pigeonMap['height'] = height;
+    return pigeonMap;
+  }
+
+  static PipStopMessage decode(Object message) {
+    final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
+    return PipStopMessage(
+      textureId: pigeonMap['textureId']! as int,
+      x: pigeonMap['x'] as double?,
+      y: pigeonMap['y'] as double?,
+      width: pigeonMap['width'] as double?,
+      height: pigeonMap['height'] as double?,
+    );
+  }
+}
+
 class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   const _AVFoundationVideoPlayerApiCodec();
   @override
@@ -370,7 +469,19 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
     if (value is MaxVideoResolutionMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else 
+    } else
+    if (value is PipStatusMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else
+    if (value is PipSourceRectMessage) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    } else
+    if (value is PipStopMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    } else
 {
       super.writeValue(buffer, value);
     }
@@ -378,45 +489,54 @@ class _AVFoundationVideoPlayerApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128:       
+      case 128:
         return BufferMessage.decode(readValue(buffer)!);
-      
-      case 129:       
+
+      case 129:
         return CreateMessage.decode(readValue(buffer)!);
-      
-      case 130:       
+
+      case 130:
         return DurationMessage.decode(readValue(buffer)!);
-      
-      case 131:       
+
+      case 131:
         return IsPlayingMessage.decode(readValue(buffer)!);
-      
-      case 132:       
+
+      case 132:
         return LoopingMessage.decode(readValue(buffer)!);
-      
-      case 133:       
+
+      case 133:
         return MixWithOthersMessage.decode(readValue(buffer)!);
-      
-      case 134:       
+
+      case 134:
         return PlaybackSpeedMessage.decode(readValue(buffer)!);
-      
-      case 135:       
+
+      case 135:
         return PositionMessage.decode(readValue(buffer)!);
-      
-      case 136:       
+
+      case 136:
         return StartMessage.decode(readValue(buffer)!);
-      
-      case 137:       
+
+      case 137:
         return TextureMessage.decode(readValue(buffer)!);
-      
-      case 138:       
+
+      case 138:
         return VolumeMessage.decode(readValue(buffer)!);
- 
-      case 139:       
+
+      case 139:
         return MaxVideoResolutionMessage.decode(readValue(buffer)!);
 
-      default:      
+      case 140:
+        return PipStatusMessage.decode(readValue(buffer)!);
+
+      case 141:
+        return PipSourceRectMessage.decode(readValue(buffer)!);
+
+      case 142:
+        return PipStopMessage.decode(readValue(buffer)!);
+
+      default:
         return super.readValueOfType(type, buffer);
-      
+
     }
   }
 }
@@ -808,4 +928,93 @@ class AVFoundationVideoPlayerApi {
       return (replyMap['result'] as IsPlayingMessage?)!;
     }
   }
+
+  Future<void> stopPictureInPicture(PipStopMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.stopPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setAutoPictureInPicture(PipStatusMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.setAutoPictureInPicture', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setRequiresLinearPlayback(PipStatusMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.setRequiresLinearPlayback', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> completePipRestoreWithSourceRect(PipSourceRectMessage arg_msg) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.AVFoundationVideoPlayerApi.completePipRestoreWithSourceRect', codec, binaryMessenger: _binaryMessenger);
+    final Map<Object?, Object?>? replyMap =
+        await channel.send(<Object?>[arg_msg]) as Map<Object?, Object?>?;
+    if (replyMap == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyMap['error'] != null) {
+      final Map<Object?, Object?> error = (replyMap['error'] as Map<Object?, Object?>?)!;
+      throw PlatformException(
+        code: (error['code'] as String?)!,
+        message: error['message'] as String?,
+        details: error['details'],
+      );
+    } else {
+      return;
+    }
+  }
+
 }

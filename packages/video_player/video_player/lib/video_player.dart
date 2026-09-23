@@ -47,6 +47,8 @@ class VideoPlayerValue {
     this.isPlaying = false,
     this.isLooping = false,
     this.isBuffering = false,
+    this.isPipActive = false,
+    this.isAutoPipEnabled = false,
     this.volume = 1.0,
     this.playbackSpeed = 1.0,
     this.rotationCorrection = 0,
@@ -55,14 +57,15 @@ class VideoPlayerValue {
 
   /// Returns an instance for a video that hasn't been loaded.
   VideoPlayerValue.uninitialized()
-      : this(duration: Duration.zero, isInitialized: false);
+    : this(duration: Duration.zero, isInitialized: false);
 
   /// Returns an instance with the given [errorDescription].
   VideoPlayerValue.erroneous(String errorDescription)
-      : this(
-            duration: Duration.zero,
-            isInitialized: false,
-            errorDescription: errorDescription);
+    : this(
+        duration: Duration.zero,
+        isInitialized: false,
+        errorDescription: errorDescription,
+      );
 
   /// This constant is just to indicate that parameter is not passed to [copyWith]
   /// workaround for this issue https://github.com/dart-lang/language/issues/2009
@@ -98,6 +101,12 @@ class VideoPlayerValue {
 
   /// True if the video is currently buffering.
   final bool isBuffering;
+
+  /// True if the video is currently in Picture-in-Picture mode.
+  final bool isPipActive;
+
+  /// True if automatic Picture-in-Picture is enabled.
+  final bool isAutoPipEnabled;
 
   /// The current volume of the playback.
   final double volume;
@@ -153,6 +162,8 @@ class VideoPlayerValue {
     bool? isPlaying,
     bool? isLooping,
     bool? isBuffering,
+    bool? isPipActive,
+    bool? isAutoPipEnabled,
     double? volume,
     double? playbackSpeed,
     int? rotationCorrection,
@@ -169,6 +180,8 @@ class VideoPlayerValue {
       isPlaying: isPlaying ?? this.isPlaying,
       isLooping: isLooping ?? this.isLooping,
       isBuffering: isBuffering ?? this.isBuffering,
+      isPipActive: isPipActive ?? this.isPipActive,
+      isAutoPipEnabled: isAutoPipEnabled ?? this.isAutoPipEnabled,
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
@@ -191,6 +204,8 @@ class VideoPlayerValue {
         'isPlaying: $isPlaying, '
         'isLooping: $isLooping, '
         'isBuffering: $isBuffering, '
+        'isPipActive: $isPipActive, '
+        'isAutoPipEnabled: $isAutoPipEnabled, '
         'volume: $volume, '
         'playbackSpeed: $playbackSpeed, '
         'errorDescription: $errorDescription)';
@@ -213,15 +228,16 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// The name of the asset is given by the [dataSource] argument and must not be
   /// null. The [package] argument must be non-null when the asset comes from a
   /// package and null otherwise.
-  VideoPlayerController.asset(this.dataSource,
-      {this.package,
-      Future<ClosedCaptionFile>? closedCaptionFile,
-      this.videoPlayerOptions})
-      : _closedCaptionFileFuture = closedCaptionFile,
-        dataSourceType = DataSourceType.asset,
-        formatHint = null,
-        httpHeaders = const <String, String>{},
-        super(VideoPlayerValue(duration: Duration.zero));
+  VideoPlayerController.asset(
+    this.dataSource, {
+    this.package,
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+  }) : _closedCaptionFileFuture = closedCaptionFile,
+       dataSourceType = DataSourceType.asset,
+       formatHint = null,
+       httpHeaders = const <String, String>{},
+       super(VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from obtained from
   /// the network.
@@ -238,40 +254,46 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.httpHeaders = const <String, String>{},
-  })  : _closedCaptionFileFuture = closedCaptionFile,
-        dataSourceType = DataSourceType.network,
-        package = null,
-        super(VideoPlayerValue(duration: Duration.zero));
+  }) : _closedCaptionFileFuture = closedCaptionFile,
+       dataSourceType = DataSourceType.network,
+       package = null,
+       super(VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from a file.
   ///
   /// This will load the file from the file-URI given by:
   /// `'file://${file.path}'`.
-  VideoPlayerController.file(File file,
-      {Future<ClosedCaptionFile>? closedCaptionFile, this.videoPlayerOptions})
-      : _closedCaptionFileFuture = closedCaptionFile,
-        dataSource = 'file://${file.path}',
-        dataSourceType = DataSourceType.file,
-        package = null,
-        formatHint = null,
-        httpHeaders = const <String, String>{},
-        super(VideoPlayerValue(duration: Duration.zero));
+  VideoPlayerController.file(
+    File file, {
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+  }) : _closedCaptionFileFuture = closedCaptionFile,
+       dataSource = 'file://${file.path}',
+       dataSourceType = DataSourceType.file,
+       package = null,
+       formatHint = null,
+       httpHeaders = const <String, String>{},
+       super(VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from a contentUri.
   ///
   /// This will load the video from the input content-URI.
   /// This is supported on Android only.
-  VideoPlayerController.contentUri(Uri contentUri,
-      {Future<ClosedCaptionFile>? closedCaptionFile, this.videoPlayerOptions})
-      : assert(defaultTargetPlatform == TargetPlatform.android,
-            'VideoPlayerController.contentUri is only supported on Android.'),
-        _closedCaptionFileFuture = closedCaptionFile,
-        dataSource = contentUri.toString(),
-        dataSourceType = DataSourceType.contentUri,
-        package = null,
-        formatHint = null,
-        httpHeaders = const <String, String>{},
-        super(VideoPlayerValue(duration: Duration.zero));
+  VideoPlayerController.contentUri(
+    Uri contentUri, {
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+  }) : assert(
+         defaultTargetPlatform == TargetPlatform.android,
+         'VideoPlayerController.contentUri is only supported on Android.',
+       ),
+       _closedCaptionFileFuture = closedCaptionFile,
+       dataSource = contentUri.toString(),
+       dataSourceType = DataSourceType.contentUri,
+       package = null,
+       formatHint = null,
+       httpHeaders = const <String, String>{},
+       super(VideoPlayerValue(duration: Duration.zero));
 
   /// The URI to the video file. This will be in different formats depending on
   /// the [DataSourceType] of the original video.
@@ -359,8 +381,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     }
 
     if (videoPlayerOptions?.mixWithOthers != null) {
-      await _videoPlayerPlatform
-          .setMixWithOthers(videoPlayerOptions!.mixWithOthers);
+      await _videoPlayerPlatform.setMixWithOthers(
+        videoPlayerOptions!.mixWithOthers,
+      );
     }
 
     final Buffer? bufferOption = videoPlayerOptions?.buffer;
@@ -371,12 +394,22 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       await _videoPlayerPlatform.setBuffer(_textureId, bufferOption);
     }
 
-    _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ??
+    _textureId =
+        (await _videoPlayerPlatform.create(dataSourceDescription)) ??
         kUninitializedTextureId;
 
     // iOSはtextureIdが必要
     if (defaultTargetPlatform == TargetPlatform.iOS && bufferOption != null) {
       await _videoPlayerPlatform.setBuffer(_textureId, bufferOption);
+    }
+
+    // requiresLinearPlaybackはiOSのみ対応。他プラットフォームでは無視される。
+    final bool requiresLinearPlayback =
+        videoPlayerOptions?.requiresLinearPlayback ?? false;
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        requiresLinearPlayback) {
+      await _videoPlayerPlatform.setRequiresLinearPlayback(
+          _textureId, requiresLinearPlayback);
     }
 
     _creatingCompleter!.complete(null);
@@ -419,7 +452,27 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
           break;
+        case VideoEventType.isPlayingStateUpdate:
+          value = value.copyWith(isPlaying: event.isPlaying);
+          break;
         case VideoEventType.unknown:
+          break;
+        case VideoEventType.pipStarted:
+          value = value.copyWith(isPipActive: true);
+          onPipActiveChanged?.call(true);
+          break;
+        case VideoEventType.pipStopped:
+          value = value.copyWith(isPipActive: false);
+          onPipActiveChanged?.call(false);
+          break;
+        case VideoEventType.pipRestoreUserInterface:
+          _completePipRestore();
+          break;
+        case VideoEventType.autoPipChanged:
+          value = value.copyWith(isAutoPipEnabled: event.isAutoPipEnabled);
+          break;
+        case VideoEventType.playbackIntentUpdate:
+          onPlaybackIntentChanged?.call(event.isPlaying ?? false);
           break;
       }
     }
@@ -462,6 +515,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       _lifeCycleObserver?.dispose();
     }
     _isDisposed = true;
+    _pipSourceRectProviders.clear();
     super.dispose();
   }
 
@@ -507,19 +561,18 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     // Cancel previous timer.
     _timerForDuration?.cancel();
 
-    _timerForDuration = Timer.periodic(
-      const Duration(milliseconds: 500),
-      (Timer timer) async {
-        if (_isDisposed) {
-          return;
-        }
-        final Duration? newDuration = await duration;
-        if (newDuration == null) {
-          return;
-        }
-        value = value.copyWith(duration: newDuration);
-      },
-    );
+    _timerForDuration = Timer.periodic(const Duration(milliseconds: 500), (
+      Timer timer,
+    ) async {
+      if (_isDisposed) {
+        return;
+      }
+      final Duration? newDuration = await duration;
+      if (newDuration == null) {
+        return;
+      }
+      value = value.copyWith(duration: newDuration);
+    });
   }
 
   Future<void> _applyPlayPause() async {
@@ -531,19 +584,18 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
       // Cancel previous timer.
       _timerForPosition?.cancel();
-      _timerForPosition = Timer.periodic(
-        const Duration(milliseconds: 500),
-        (Timer timer) async {
-          if (_isDisposed) {
-            return;
-          }
-          final Duration? newPosition = await position;
-          if (newPosition == null) {
-            return;
-          }
-          _updatePosition(newPosition);
-        },
-      );
+      _timerForPosition = Timer.periodic(const Duration(milliseconds: 500), (
+        Timer timer,
+      ) async {
+        if (_isDisposed) {
+          return;
+        }
+        final Duration? newPosition = await position;
+        if (newPosition == null) {
+          return;
+        }
+        _updatePosition(newPosition);
+      });
 
       // This ensures that the correct playback speed is always applied when
       // playing back. This is necessary because we do not set playback speed
@@ -584,12 +636,10 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposedOrNotInitialized) {
       return;
     }
-    final int sanitizedWidth = _maxVideoWidth ?? 0;
-    final int sanitizedHeight = _maxVideoHeight ?? 0;
     await _videoPlayerPlatform.setMaxVideoResolution(
       _textureId,
-      sanitizedWidth,
-      sanitizedHeight,
+      _maxVideoWidth ?? 0,
+      _maxVideoHeight ?? 0,
     );
   }
 
@@ -598,7 +648,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return null;
     }
-    return await _videoPlayerPlatform.getPosition(_textureId);
+    return _videoPlayerPlatform.getPosition(_textureId);
   }
 
   /// The duration in the current video.
@@ -606,7 +656,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return null;
     }
-    return await _videoPlayerPlatform.getDuration(_textureId);
+    return _videoPlayerPlatform.getDuration(_textureId);
   }
 
   /// Get latest isPlaying status from ExoPlayer/AVPlayer
@@ -614,7 +664,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     if (_isDisposed) {
       return false;
     }
-    return await _videoPlayerPlatform.getIsPlaying(_textureId);
+    return _videoPlayerPlatform.getIsPlaying(_textureId);
   }
 
   /// Sets the video's current timestamp to be at [moment]. The next
@@ -681,15 +731,135 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Sets the maximum video resolution. Pass `null` or values <= 0 to clear.
   Future<void> setMaxVideoResolution(int? width, int? height) async {
     if (width != null && width < 0) {
-      throw ArgumentError.value(width, 'width', 'Width must be positive when provided.');
+      throw ArgumentError.value(
+        width,
+        'width',
+        'Width must be positive when provided.',
+      );
     }
     if (height != null && height < 0) {
-      throw ArgumentError.value(height, 'height', 'Height must be positive when provided.');
+      throw ArgumentError.value(
+        height,
+        'height',
+        'Height must be positive when provided.',
+      );
     }
 
     _maxVideoWidth = (width != null && width > 0) ? width : null;
     _maxVideoHeight = (height != null && height > 0) ? height : null;
     await _applyMaxVideoResolution();
+  }
+
+  /// Stops Picture-in-Picture mode.
+  ///
+  /// Supported on iOS and Android.
+  Future<void> stopPictureInPicture() async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.stopPictureInPicture(
+      _textureId,
+      sourceRect: _resolvePipSourceRect(),
+    );
+  }
+
+  /// Enables or disables automatic Picture-in-Picture.
+  ///
+  /// When enabled:
+  /// - Android 12+ (API 31+): Uses native setAutoEnterEnabled
+  /// - Android 8-11 (API 26-30): Enters PiP from onUserLeaveHint
+  /// - iOS 14.2+: Uses canStartPictureInPictureAutomaticallyFromInline
+  ///
+  /// On unsupported versions, this is a no-op.
+  Future<void> setAutoPictureInPicture(bool enabled) async {
+    await _videoPlayerPlatform.setAutoPictureInPicture(_textureId, enabled);
+  }
+
+  /// Sets whether Picture-in-Picture requires linear playback at runtime.
+  ///
+  /// When `true`, the PiP window hides the skip forward/backward buttons.
+  /// iOS 14.2+ only; silently ignored on other platforms. Can be called at
+  /// any time, including while PiP is already active.
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+    await _videoPlayerPlatform.setRequiresLinearPlayback(
+        _textureId, requiresLinearPlayback);
+  }
+
+  /// Providers that return the screen rect of a [VideoPlayer] widget
+  /// currently rendering this controller's video, for the PiP restore
+  /// animation. Registered automatically by [VideoPlayer].
+  ///
+  /// A single controller can be rendered by more than one [VideoPlayer] at
+  /// once (e.g. a thumbnail and a fullscreen view sharing the same
+  /// controller). Providers are kept in registration order; the most
+  /// recently registered one is tried first, since it's usually the widget
+  /// the user is currently looking at.
+  final List<Rect? Function()> _pipSourceRectProviders = <Rect? Function()>[];
+
+  /// Registers a callback that returns the on-screen rect of a widget
+  /// rendering this controller's video. Called automatically by
+  /// [VideoPlayer]; app code shouldn't need to call this directly.
+  void addPipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+    _pipSourceRectProviders.add(provider);
+  }
+
+  /// Unregisters a provider added via [addPipSourceRectProvider].
+  void removePipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.remove(provider);
+  }
+
+  /// Picture-in-Picture の有効状態が変化した時に呼ばれるコールバック。
+  ///
+  /// [isActive] が true の場合は PiP に入ったこと、false の場合は
+  /// PiP から出たことを示す。
+  /// [VideoPlayerValue.isPipActive] と同じ値がパラメータで渡される。
+  void Function(bool isActive)? onPipActiveChanged;
+
+  /// OS 側 (例: iOS Native Picture-in-Picture ウィンドウのボタン) が [play] /
+  /// [pause] を経由せずプレイヤーを直接操作した時に、変化後の再生意図
+  /// (true = 再生) を通知する。呼び出し側で [play] / [pause] を呼び直すこと。
+  ValueChanged<bool>? onPlaybackIntentChanged;
+
+  /// Resolves the rect to use for the PiP restore animation by trying
+  /// registered providers from most-recently-registered to oldest, using
+  /// the first one that returns a non-null rect.
+  Rect? _resolvePipSourceRect() {
+    for (final Rect? Function() provider
+        in _pipSourceRectProviders.reversed) {
+      final Rect? rect = provider();
+      if (rect != null) {
+        return rect;
+      }
+    }
+    return null;
+  }
+
+  /// The rect that would currently be used for the PiP restore animation.
+  /// Exposed only for testing [addPipSourceRectProvider] registration.
+  @visibleForTesting
+  Rect? get pipSourceRectForTesting => _resolvePipSourceRect();
+
+  void _completePipRestore() {
+    if (_isDisposedOrNotInitialized) {
+      return;
+    }
+
+    final Rect? rect = _resolvePipSourceRect();
+    if (rect == null) {
+      return;
+    }
+
+    _videoPlayerPlatform.completePipRestoreWithSourceRect(
+      _textureId,
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height,
+    );
   }
 
   /// Sets the caption offset.
@@ -786,11 +956,15 @@ class _VideoAppLifeCycleObserver extends Object with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.paused:
+        // Don't pause during PiP — the video should keep playing in the PiP window.
+        if (_controller.value.isPipActive) {
+          return;
+        }
         _wasPlayingBeforePause = _controller.value.isPlaying;
         _controller.pause();
         break;
       case AppLifecycleState.resumed:
-        if (_wasPlayingBeforePause) {
+        if (_wasPlayingBeforePause && !_controller.value.isPipActive) {
           _controller.play();
         }
         break;
@@ -831,6 +1005,23 @@ class _VideoPlayerState extends State<VideoPlayer> {
   late VoidCallback _listener;
 
   late int _textureId;
+  final GlobalKey _textureKey = GlobalKey();
+
+  Rect? _getSourceRect() {
+    final RenderBox? renderBox =
+        _textureKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return null;
+    }
+
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    return Rect.fromLTWH(
+      offset.dx,
+      offset.dy,
+      renderBox.size.width,
+      renderBox.size.height,
+    );
+  }
 
   @override
   void initState() {
@@ -839,20 +1030,24 @@ class _VideoPlayerState extends State<VideoPlayer> {
     // Need to listen for initialization events since the actual texture ID
     // becomes available after asynchronous initialization finishes.
     widget.controller.addListener(_listener);
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
+    oldWidget.controller.removePipSourceRectProvider(_getSourceRect);
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
+    widget.controller.addPipSourceRectProvider(_getSourceRect);
   }
 
   @override
   void deactivate() {
     super.deactivate();
     widget.controller.removeListener(_listener);
+    widget.controller.removePipSourceRectProvider(_getSourceRect);
   }
 
   @override
@@ -861,25 +1056,27 @@ class _VideoPlayerState extends State<VideoPlayer> {
         ? Container()
         : _VideoPlayerWithRotation(
             rotation: widget.controller.value.rotationCorrection,
-            child: _videoPlayerPlatform.buildView(_textureId),
+            child: KeyedSubtree(
+              key: _textureKey,
+              child: _videoPlayerPlatform.buildView(_textureId),
+            ),
           );
   }
 }
 
 class _VideoPlayerWithRotation extends StatelessWidget {
-  const _VideoPlayerWithRotation(
-      {Key? key, required this.rotation, required this.child})
-      : super(key: key);
+  const _VideoPlayerWithRotation({
+    Key? key,
+    required this.rotation,
+    required this.child,
+  }) : super(key: key);
   final int rotation;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => rotation == 0
       ? child
-      : Transform.rotate(
-          angle: rotation * math.pi / 180,
-          child: child,
-        );
+      : Transform.rotate(angle: rotation * math.pi / 180, child: child);
 }
 
 /// Used to configure the [VideoProgressIndicator] widget's colors for how it
@@ -923,10 +1120,7 @@ class VideoProgressColors {
 }
 
 class _VideoScrubber extends StatefulWidget {
-  const _VideoScrubber({
-    required this.child,
-    required this.controller,
-  });
+  const _VideoScrubber({required this.child, required this.controller});
 
   final Widget child;
   final VideoPlayerController controller;
@@ -1153,11 +1347,11 @@ class ClosedCaption extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final TextStyle effectiveTextStyle = textStyle ??
-        DefaultTextStyle.of(context).style.copyWith(
-              fontSize: 36.0,
-              color: Colors.white,
-            );
+    final TextStyle effectiveTextStyle =
+        textStyle ??
+        DefaultTextStyle.of(
+          context,
+        ).style.copyWith(fontSize: 36.0, color: Colors.white);
 
     return Align(
       alignment: Alignment.bottomCenter,

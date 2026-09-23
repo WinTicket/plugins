@@ -87,10 +87,70 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
   ) async {}
 
   @override
-  Future<bool?> get isPlaying async => value.isPlaying;
+  Future<bool> get isPlaying async => value.isPlaying;
 
   @override
   Future<void> setBuffer(Buffer buffer) async {}
+
+  @override
+  Future<void> stopPictureInPicture() async {}
+
+  @override
+  Future<void> setAutoPictureInPicture(bool enabled) async {}
+
+  @override
+  Future<void> setRequiresLinearPlayback(bool requiresLinearPlayback) async {}
+
+  @override
+  void Function(bool isActive)? onPipActiveChanged;
+
+  final List<_FakePipSourceRectRegistration> _pipSourceRectProviders =
+      <_FakePipSourceRectRegistration>[];
+
+  @override
+  void addPipSourceRectProvider(
+    Rect? Function() provider, {
+    bool isExplicit = false,
+  }) {
+    _pipSourceRectProviders.removeWhere(
+        (_FakePipSourceRectRegistration r) => r.provider == provider);
+    _pipSourceRectProviders
+        .add(_FakePipSourceRectRegistration(provider, isExplicit));
+  }
+
+  @override
+  void removePipSourceRectProvider(Rect? Function() provider) {
+    _pipSourceRectProviders.removeWhere(
+        (_FakePipSourceRectRegistration r) => r.provider == provider);
+  }
+
+  @override
+  Rect? get pipSourceRectForTesting {
+    final Iterable<_FakePipSourceRectRegistration> explicit =
+        _pipSourceRectProviders
+            .where((_FakePipSourceRectRegistration r) => r.isExplicit);
+    for (final _FakePipSourceRectRegistration registration
+        in explicit.toList().reversed) {
+      final Rect? rect = registration.provider();
+      if (rect != null) {
+        return rect;
+      }
+    }
+    for (final _FakePipSourceRectRegistration registration
+        in _pipSourceRectProviders.reversed) {
+      final Rect? rect = registration.provider();
+      if (rect != null) {
+        return rect;
+      }
+    }
+    return null;
+  }
+}
+
+class _FakePipSourceRectRegistration {
+  _FakePipSourceRectRegistration(this.provider, this.isExplicit);
+  final Rect? Function() provider;
+  final bool isExplicit;
 }
 
 Future<ClosedCaptionFile> _loadClosedCaption() async =>
@@ -163,6 +223,30 @@ void main() {
           (Widget widget) => widget is Texture && widget.textureId == 102,
         ),
         findsOneWidget);
+  });
+
+  testWidgets('provides the video source rect for PiP restore',
+      (WidgetTester tester) async {
+    final FakeController controller = FakeController()..textureId = 123;
+
+    await tester.pumpWidget(
+      Center(
+        child: SizedBox(
+          width: 320,
+          height: 180,
+          child: VideoPlayer(controller),
+        ),
+      ),
+    );
+
+    expect(
+      controller.pipSourceRectForTesting,
+      tester.getRect(find.byType(Texture)),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    expect(controller.pipSourceRectForTesting, isNull);
   });
 
   testWidgets('non-zero rotationCorrection value is used',
@@ -818,6 +902,33 @@ void main() {
         await tester.pumpAndSettle();
         expect(controller.value.isBuffering, isFalse);
       });
+
+      test('native playback state updates isPlaying', () async {
+        final VideoPlayerController controller = VideoPlayerController.network(
+          'https://127.0.0.1',
+        );
+        await controller.initialize();
+        final StreamController<VideoEvent> fakeVideoEventStream =
+            fakeVideoPlayerPlatform.streams[controller.textureId]!;
+
+        controller.value = controller.value.copyWith(isPlaying: true);
+        fakeVideoEventStream.add(VideoEvent(
+          eventType: VideoEventType.isPlayingStateUpdate,
+          isPlaying: false,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.isPlaying, isFalse);
+
+        fakeVideoEventStream.add(VideoEvent(
+          eventType: VideoEventType.isPlayingStateUpdate,
+          isPlaying: true,
+        ));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.isPlaying, isTrue);
+        await controller.dispose();
+      });
     });
   });
 
@@ -1085,6 +1196,39 @@ void main() {
     });
   });
 
+  group('stopPictureInPicture', () {
+    late FakeVideoPlayerPlatform fakeVideoPlayerPlatform;
+
+    setUp(() {
+      fakeVideoPlayerPlatform = FakeVideoPlayerPlatform();
+      VideoPlayerPlatform.instance = fakeVideoPlayerPlatform;
+    });
+
+    test('forwards the current PiP source rect', () async {
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      const Rect sourceRect = Rect.fromLTWH(10, 20, 320, 180);
+      await controller.initialize();
+      controller.addPipSourceRectProvider(() => sourceRect);
+
+      await controller.stopPictureInPicture();
+
+      expect(fakeVideoPlayerPlatform.lastPipSourceRect, sourceRect);
+      await controller.dispose();
+    });
+
+    test('supports stopping without a PiP source rect', () async {
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      await controller.initialize();
+
+      await controller.stopPictureInPicture();
+
+      expect(fakeVideoPlayerPlatform.lastPipSourceRect, isNull);
+      await controller.dispose();
+    });
+  });
+
   test('VideoProgressColors', () {
     const Color playedColor = Color.fromRGBO(0, 0, 255, 0.75);
     const Color bufferedColor = Color.fromRGBO(0, 255, 0, 0.5);
@@ -1112,6 +1256,7 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   final Map<int, Duration> _positions = <int, Duration>{};
   int? lastMaxVideoWidth;
   int? lastMaxVideoHeight;
+  Rect? lastPipSourceRect;
 
   @override
   Future<int?> create(DataSource dataSource) async {
@@ -1194,6 +1339,12 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
     calls.add('setMaxVideoResolution');
     lastMaxVideoWidth = width;
     lastMaxVideoHeight = height;
+  }
+
+  @override
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) async {
+    calls.add('stopPictureInPicture');
+    lastPipSourceRect = sourceRect;
   }
 }
 

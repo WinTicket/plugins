@@ -138,6 +138,11 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.bufferingStart);
         case 'bufferingEnd':
           return VideoEvent(eventType: VideoEventType.bufferingEnd);
+        case 'isPlayingStateUpdate':
+          return VideoEvent(
+            eventType: VideoEventType.isPlayingStateUpdate,
+            isPlaying: map['isPlaying'] as bool,
+          );
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
@@ -169,7 +174,6 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
     );
   }
 
-  @override
   @override
   Future<void> setMaxVideoResolution(int textureId, int? width, int? height) {
     final int sanitizedWidth = width != null && width > 0 ? width : 0;

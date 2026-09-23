@@ -123,6 +123,42 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   Future<bool> getIsPlaying(int textureId) {
     throw UnimplementedError('isPlaying() has not been implemented.');
   }
+
+  /// Stops Picture-in-Picture mode.
+  ///
+  /// [sourceRect] is the screen position of the inline player to which the PiP
+  /// window should return. Platforms that do not use a restore destination may
+  /// ignore it.
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) {
+    throw UnimplementedError(
+        'stopPictureInPicture() has not been implemented.');
+  }
+
+  /// Enables or disables automatic Picture-in-Picture.
+  ///
+  /// When enabled, PiP starts automatically when the user navigates away.
+  /// Supported on Android 12+ (API 31+) and iOS 14.2+.
+  Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
+    throw UnimplementedError(
+        'setAutoPictureInPicture() has not been implemented.');
+  }
+
+  /// Completes the PiP restore animation by providing the source rect
+  /// (the screen position of the video widget) so the PiP window
+  /// animates back to the correct position.
+  Future<void> completePipRestoreWithSourceRect(
+      int textureId, double x, double y, double width, double height) {
+    throw UnimplementedError(
+        'completePipRestoreWithSourceRect() has not been implemented.');
+  }
+
+  /// Sets whether Picture-in-Picture requires linear playback.
+  ///
+  /// When `true`, the PiP window hides the skip forward/backward buttons.
+  /// iOS 14.2+ only; silently ignored on other platforms.
+  Future<void> setRequiresLinearPlayback(
+      int textureId, bool requiresLinearPlayback) async {}
+
 }
 
 /// バッファを調整するための各パラメーター
@@ -282,6 +318,8 @@ class VideoEvent {
     this.size,
     this.rotationCorrection,
     this.buffered,
+    this.isPlaying,
+    this.isAutoPipEnabled,
   });
 
   /// The type of the event.
@@ -307,6 +345,17 @@ class VideoEvent {
   /// Only used if [eventType] is [VideoEventType.bufferingUpdate].
   final List<DurationRange>? buffered;
 
+  /// Whether the video is currently playing.
+  ///
+  /// Only used if [eventType] is [VideoEventType.isPlayingStateUpdate] or
+  /// [VideoEventType.playbackIntentUpdate].
+  final bool? isPlaying;
+
+  /// Whether automatic Picture-in-Picture is enabled.
+  ///
+  /// Only used if [eventType] is [VideoEventType.autoPipChanged].
+  final bool? isAutoPipEnabled;
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -316,7 +365,9 @@ class VideoEvent {
             duration == other.duration &&
             size == other.size &&
             rotationCorrection == other.rotationCorrection &&
-            listEquals(buffered, other.buffered);
+            listEquals(buffered, other.buffered) &&
+            isPlaying == other.isPlaying &&
+            isAutoPipEnabled == other.isAutoPipEnabled;
   }
 
   @override
@@ -326,6 +377,8 @@ class VideoEvent {
         size,
         rotationCorrection,
         buffered,
+        isPlaying,
+        isAutoPipEnabled,
       );
 }
 
@@ -349,8 +402,31 @@ enum VideoEventType {
   /// The video stopped to buffer.
   bufferingEnd,
 
+  /// The playback state of the video has changed.
+  ///
+  /// This event is fired when the video starts or pauses due to user actions,
+  /// phone calls, or other app media such as music players.
+  isPlayingStateUpdate,
+
   /// An unknown event has been received.
   unknown,
+
+  /// Picture-in-Picture has started.
+  pipStarted,
+
+  /// Picture-in-Picture has stopped.
+  pipStopped,
+
+  /// The system requests restoring the user interface from Picture-in-Picture.
+  pipRestoreUserInterface,
+
+  /// Auto Picture-in-Picture enabled state changed.
+  autoPipChanged,
+
+  /// The playback intent changed outside of this plugin's play/pause API
+  /// (e.g. the native Picture-in-Picture window's play/pause button on iOS).
+  /// Consumers should treat this the same as an explicit play/pause request.
+  playbackIntentUpdate,
 }
 
 /// Describes a discrete segment of time within a video using a [start] and
@@ -430,6 +506,7 @@ class VideoPlayerOptions {
     this.mixWithOthers = false,
     this.allowBackgroundPlayback = false,
     this.buffer,
+    this.requiresLinearPlayback = false,
   });
 
   /// Set this to true to keep playing video in background, when app goes in background.
@@ -446,4 +523,11 @@ class VideoPlayerOptions {
   /// AndroidとiOSでバッファの値を調整するためにセットします
   /// nullの場合は各プラットフォームのPlayerのデフォルトの値が使われます
   final Buffer? buffer;
+
+  /// Set this to true to hide the skip forward/backward buttons in the
+  /// Picture-in-Picture window. The default value is false.
+  ///
+  /// Note: This option is only supported on iOS 14.2+ and is silently
+  /// ignored on other platforms.
+  final bool requiresLinearPlayback;
 }

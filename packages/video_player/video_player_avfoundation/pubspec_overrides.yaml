@@ -1,0 +1,6 @@
+# Local dev override so edits to video_player_platform_interface in this
+# monorepo are picked up without waiting for a pub.dev release.
+# Mirrors the override already present in example/pubspec.yaml.
+dependency_overrides:
+  video_player_platform_interface:
+    path: ../video_player_platform_interface

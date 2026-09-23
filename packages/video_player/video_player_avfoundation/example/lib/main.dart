@@ -150,6 +150,24 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
               ),
             ),
           ),
+          Text(_controller.value.isPlaying ? 'Playing' : 'Paused'),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ElevatedButton.icon(
+              onPressed: _controller.isPipActive
+                  ? () => _controller.stopPictureInPicture()
+                  : null,
+              icon: const Icon(Icons.fullscreen_exit),
+              label: const Text('Stop PiP'),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Auto PiP'),
+            value: _controller.isAutoPipEnabled,
+            onChanged: (bool enabled) {
+              _controller.setAutoPictureInPicture(enabled);
+            },
+          ),
         ],
       ),
     );
