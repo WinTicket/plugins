@@ -358,11 +358,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     }
   } else if (context == timeControlStatusContext) {
     AVPlayer *player = (AVPlayer *)object;
-    // OS PiP のコントロールは play/pause API を経由せず AVPlayer を直接操作するため、
-    // 放置すると直後の updatePlayingState が古い _isPlaying で操作を打ち消す
-    // PiP 表示中に意図の乖離 (waiting はバッファ待ちなので再生意図扱い) を検知したら追従し、Dart へ通知する。
+    // play/pause API を経由せず AVPlayer が直接操作されるケースを検知し、_isPlaying を追従させる。
+    // - OS PiP コントロール: play / pause 双方向
+    // - 他アプリの audio session 割り込み (rate=0 で paused になる): pause 方向のみ
+    // 放置すると直後の KVO 経由の updatePlayingState が古い _isPlaying で [_player play] を呼び、
+    // 他アプリの再生を奪ってしまう。waiting はバッファ待ちなので再生意図扱い。
     BOOL wantsToPlay = player.timeControlStatus != AVPlayerTimeControlStatusPaused;
-    if ([_pipController isPictureInPictureActive] && wantsToPlay != _isPlaying) {
+    BOOL isPipActive = [_pipController isPictureInPictureActive];
+    BOOL pausedExternally = !wantsToPlay && _isPlaying;
+    if ((isPipActive || pausedExternally) && wantsToPlay != _isPlaying) {
       _isPlaying = wantsToPlay;
       if (_eventSink != nil) {
         _eventSink(@{
