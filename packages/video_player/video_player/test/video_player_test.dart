@@ -249,6 +249,339 @@ void main() {
     expect(controller.pipSourceRectForTesting, isNull);
   });
 
+  testWidgets('親が rebuild されても PiP 復帰先の優先順位が変わらない',
+      (WidgetTester tester) async {
+    final FakeController controller = FakeController()..textureId = 123;
+
+    // 同一インスタンスを使い回し、rebuild 時に didUpdateWidget が呼ばれるのを
+    // 先に mount された方だけにする。
+    final Widget laterPlayer = VideoPlayer(controller);
+
+    Widget build(int rebuildCount) {
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: <Widget>[
+            // 先に mount された方 (rebuild 対象)。
+            Positioned(
+              left: 0,
+              top: 0,
+              width: 100 + rebuildCount.toDouble(),
+              height: 100,
+              child: VideoPlayer(controller),
+            ),
+            // 後から mount された方。優先されるべき。
+            Positioned(
+              left: 200,
+              top: 0,
+              width: 100,
+              height: 100,
+              child: laterPlayer,
+            ),
+          ],
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build(0));
+    final Rect? before = controller.pipSourceRectForTesting;
+    expect(before?.left, 200);
+
+    // 先に mount された方だけが rebuild されても、優先順位は変わらない。
+    await tester.pumpWidget(build(1));
+    expect(controller.pipSourceRectForTesting?.left, 200);
+  });
+
+  testWidgets(
+      '同じ controller を共有する場合、後から mount された方が優先され、 '
+      'unmount されると先に mount された方に戻る',
+      (WidgetTester tester) async {
+    VideoPlayerPlatform.instance = FakeVideoPlayerPlatform();
+    final VideoPlayerController controller =
+        VideoPlayerController.file(File(''));
+    await tester.runAsync(controller.initialize);
+    addTearDown(() => tester.runAsync(controller.dispose));
+
+    // 詳細画面の映像 (先に mount) と、アプリ内 PiP (後から mount) を想定する。
+    Widget build({required bool showLaterPlayer}) {
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: <Widget>[
+            Positioned(
+              left: 0,
+              top: 0,
+              width: 100,
+              height: 100,
+              child: VideoPlayer(controller),
+            ),
+            if (showLaterPlayer)
+              Positioned(
+                left: 200,
+                top: 0,
+                width: 100,
+                height: 100,
+                child: VideoPlayer(controller),
+              ),
+          ],
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build(showLaterPlayer: false));
+    expect(controller.pipSourceRectForTesting?.left, 0);
+
+    await tester.pumpWidget(build(showLaterPlayer: true));
+    expect(controller.pipSourceRectForTesting?.left, 200);
+
+    // 後から mount された方が消えると、先に mount された方が候補に戻る。
+    await tester.pumpWidget(build(showLaterPlayer: false));
+    expect(controller.pipSourceRectForTesting?.left, 0);
+  });
+
+  testWidgets('controller が変わると PiP 復帰先の provider が新しい controller に移る',
+      (WidgetTester tester) async {
+    final FakeController oldController = FakeController()..textureId = 1;
+    final FakeController newController = FakeController()..textureId = 2;
+
+    Widget build(FakeController controller) {
+      return SizedBox(width: 100, height: 100, child: VideoPlayer(controller));
+    }
+
+    await tester.pumpWidget(build(oldController));
+    expect(oldController.pipSourceRectForTesting, isNotNull);
+    expect(newController.pipSourceRectForTesting, isNull);
+
+    await tester.pumpWidget(build(newController));
+    expect(oldController.pipSourceRectForTesting, isNull);
+    expect(newController.pipSourceRectForTesting, isNotNull);
+  });
+
+  group('タブ構成 (IndexedStack + アプリ内 PiP) での PiP 復帰先', () {
+    // example の Race タブと同じ構成。
+    // - 詳細タブ (index 0) の映像は、他のタブへ切り替えても IndexedStack で裏に残る。
+    // - アプリ内 PiP は、詳細タブ以外を表示している間だけ後から mount される。
+    // - stow 中の PiP は画面端の外へ移動する。
+    const Rect detailRect = Rect.fromLTWH(0, 0, 320, 180);
+    const Rect pipRect = Rect.fromLTWH(624, 494, 160, 90);
+    const Rect stowedPipRect = Rect.fromLTWH(808, 494, 160, 90);
+
+    // 実アプリではスクロールやタブ切り替えで詳細側だけが rebuild されるため、
+    // PiP 側の VideoPlayer は同一インスタンスを使い回して didUpdateWidget を
+    // 呼ばせない。
+    Widget buildRace(
+      VideoPlayerController controller, {
+      required Widget pipPlayer,
+      required int tabIndex,
+      bool isStowed = false,
+    }) {
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 800,
+            height: 600,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Positioned.fill(
+                  child: IndexedStack(
+                    index: tabIndex,
+                    children: <Widget>[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: 320,
+                          height: 180,
+                          child: VideoPlayer(controller),
+                        ),
+                      ),
+                      const SizedBox.expand(),
+                      const SizedBox.expand(),
+                    ],
+                  ),
+                ),
+                if (tabIndex != 0)
+                  Positioned(
+                    right: isStowed ? -168.0 : 16.0,
+                    bottom: 16,
+                    width: 160,
+                    height: 90,
+                    child: pipPlayer,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Future<VideoPlayerController> createController(
+      WidgetTester tester,
+    ) async {
+      VideoPlayerPlatform.instance = FakeVideoPlayerPlatform();
+      final VideoPlayerController controller =
+          VideoPlayerController.file(File(''));
+      await tester.runAsync(controller.initialize);
+      addTearDown(() => tester.runAsync(controller.dispose));
+      return controller;
+    }
+
+    testWidgets('詳細タブを表示している間は、詳細の映像が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final Widget pipPlayer = VideoPlayer(controller);
+      Widget race(int tabIndex, {bool isStowed = false}) => buildRace(
+            controller,
+            pipPlayer: pipPlayer,
+            tabIndex: tabIndex,
+            isStowed: isStowed,
+          );
+
+      await tester.pumpWidget(race(0));
+
+      expect(controller.pipSourceRectForTesting, detailRect);
+    });
+
+    testWidgets('他のタブへ切り替えて詳細タブが裏に残っても、アプリ内 PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final Widget pipPlayer = VideoPlayer(controller);
+      Widget race(int tabIndex, {bool isStowed = false}) => buildRace(
+            controller,
+            pipPlayer: pipPlayer,
+            tabIndex: tabIndex,
+            isStowed: isStowed,
+          );
+
+      await tester.pumpWidget(race(0));
+      await tester.pumpWidget(race(1));
+      expect(controller.pipSourceRectForTesting, pipRect);
+
+      // タブ間を行き来して詳細タブが rebuild されても、PiP が優先され続ける。
+      await tester.pumpWidget(race(2));
+      expect(controller.pipSourceRectForTesting, pipRect);
+      await tester.pumpWidget(race(1));
+      expect(controller.pipSourceRectForTesting, pipRect);
+    });
+
+    testWidgets('詳細タブへ戻って PiP が消えると、詳細の映像が復帰先に戻る',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final Widget pipPlayer = VideoPlayer(controller);
+      Widget race(int tabIndex, {bool isStowed = false}) => buildRace(
+            controller,
+            pipPlayer: pipPlayer,
+            tabIndex: tabIndex,
+            isStowed: isStowed,
+          );
+
+      await tester.pumpWidget(race(1));
+      expect(controller.pipSourceRectForTesting, pipRect);
+
+      await tester.pumpWidget(race(0));
+      expect(controller.pipSourceRectForTesting, detailRect);
+    });
+
+    testWidgets('PiP を stow して画面外にあっても、PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final Widget pipPlayer = VideoPlayer(controller);
+      Widget race(int tabIndex, {bool isStowed = false}) => buildRace(
+            controller,
+            pipPlayer: pipPlayer,
+            tabIndex: tabIndex,
+            isStowed: isStowed,
+          );
+
+      await tester.pumpWidget(race(1));
+      await tester.pumpWidget(race(1, isStowed: true));
+
+      expect(controller.pipSourceRectForTesting, stowedPipRect);
+    });
+
+    testWidgets('詳細タブをスクロールして映像が見切れると、アプリ内 PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final GlobalKey<_RaceTabsHarnessState> key =
+          GlobalKey<_RaceTabsHarnessState>();
+      await tester.pumpWidget(_RaceTabsHarness(key: key, controller: controller));
+      expect(controller.pipSourceRectForTesting, detailRect);
+
+      // 映像が上に見切れても、キャッシュ範囲内では詳細側の VideoPlayer は残る。
+      key.currentState!.scrollTo(300);
+      await tester.pump();
+
+      expect(controller.pipSourceRectForTesting, pipRect);
+    });
+
+    testWidgets('PiP が出た後に詳細だけが rebuild されても、アプリ内 PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final GlobalKey<_RaceTabsHarnessState> key =
+          GlobalKey<_RaceTabsHarnessState>();
+      await tester.pumpWidget(_RaceTabsHarness(key: key, controller: controller));
+
+      key.currentState!.scrollTo(300);
+      await tester.pump();
+      expect(controller.pipSourceRectForTesting, pipRect);
+
+      key.currentState!.rebuild();
+      await tester.pump();
+
+      expect(controller.pipSourceRectForTesting, pipRect);
+    });
+
+    testWidgets('大きくスクロールして詳細の映像が破棄されても、アプリ内 PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final GlobalKey<_RaceTabsHarnessState> key =
+          GlobalKey<_RaceTabsHarnessState>();
+      await tester.pumpWidget(_RaceTabsHarness(key: key, controller: controller));
+
+      key.currentState!.scrollTo(1500);
+      await tester.pump();
+
+      expect(controller.pipSourceRectForTesting, pipRect);
+    });
+
+    testWidgets('スクロールした状態でタブを切り替えて戻っても、アプリ内 PiP が復帰先になる',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final GlobalKey<_RaceTabsHarnessState> key =
+          GlobalKey<_RaceTabsHarnessState>();
+      await tester.pumpWidget(_RaceTabsHarness(key: key, controller: controller));
+
+      key.currentState!.scrollTo(300);
+      await tester.pump();
+      key.currentState!.selectTab(1);
+      await tester.pump();
+      expect(controller.pipSourceRectForTesting, pipRect);
+
+      // 詳細タブへ戻っても、映像はまだ見切れているので PiP のまま。
+      key.currentState!.selectTab(0);
+      await tester.pump();
+      expect(controller.pipSourceRectForTesting, pipRect);
+    });
+
+    testWidgets('スクロールを戻して映像が見えると、詳細の映像が復帰先に戻る',
+        (WidgetTester tester) async {
+      final VideoPlayerController controller = await createController(tester);
+      final GlobalKey<_RaceTabsHarnessState> key =
+          GlobalKey<_RaceTabsHarnessState>();
+      await tester.pumpWidget(_RaceTabsHarness(key: key, controller: controller));
+
+      key.currentState!.scrollTo(300);
+      await tester.pump();
+      expect(controller.pipSourceRectForTesting, pipRect);
+
+      key.currentState!.scrollTo(0);
+      await tester.pump();
+      expect(controller.pipSourceRectForTesting, detailRect);
+    });
+  });
+
   testWidgets('non-zero rotationCorrection value is used',
       (WidgetTester tester) async {
     final FakeController controller = FakeController.value(
@@ -1245,6 +1578,117 @@ void main() {
   });
 }
 
+/// 詳細タブ (スクロールする ListView の先頭に映像) と、他のタブを IndexedStack で
+/// 並べ、詳細タブ以外の表示中、または映像がスクロールで見切れた時に
+/// アプリ内 PiP を出すテスト用ハーネス。アプリのレース詳細画面の構成を再現する。
+class _RaceTabsHarness extends StatefulWidget {
+  const _RaceTabsHarness({Key? key, required this.controller})
+      : super(key: key);
+
+  final VideoPlayerController controller;
+
+  @override
+  State<_RaceTabsHarness> createState() => _RaceTabsHarnessState();
+}
+
+class _RaceTabsHarnessState extends State<_RaceTabsHarness> {
+  static const double _videoHeight = 180;
+
+  final ScrollController _scrollController = ScrollController();
+  // アプリ内 PiP は同一インスタンスを使い回し、詳細側だけが rebuild される状況にする。
+  late final Widget _pipPlayer = VideoPlayer(widget.controller);
+  int _tabIndex = 0;
+  bool _isScrolledOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final bool isScrolledOut = _scrollController.offset > _videoHeight;
+    if (isScrolledOut != _isScrolledOut) {
+      setState(() {
+        _isScrolledOut = isScrolledOut;
+      });
+    }
+  }
+
+  void selectTab(int index) {
+    setState(() {
+      _tabIndex = index;
+    });
+  }
+
+  void scrollTo(double offset) {
+    _scrollController.jumpTo(offset);
+  }
+
+  /// 状態を変えずに再 build する。詳細側の VideoPlayer だけが更新される。
+  void rebuild() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPipVisible = _tabIndex != 0 || _isScrolledOut;
+
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 800,
+          height: 600,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Positioned.fill(
+                child: IndexedStack(
+                  index: _tabIndex,
+                  children: <Widget>[
+                    ListView(
+                      controller: _scrollController,
+                      children: <Widget>[
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: SizedBox(
+                            width: 320,
+                            height: _videoHeight,
+                            child: VideoPlayer(widget.controller),
+                          ),
+                        ),
+                        const SizedBox(height: 3000),
+                      ],
+                    ),
+                    const SizedBox.expand(),
+                    const SizedBox.expand(),
+                  ],
+                ),
+              ),
+              if (isPipVisible)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  width: 160,
+                  height: 90,
+                  child: _pipPlayer,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   Completer<bool> initialized = Completer<bool>();
   List<String> calls = <String>[];
@@ -1345,6 +1789,11 @@ class FakeVideoPlayerPlatform extends VideoPlayerPlatform {
   Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) async {
     calls.add('stopPictureInPicture');
     lastPipSourceRect = sourceRect;
+  }
+
+  @override
+  Widget buildView(int textureId) {
+    return Texture(textureId: textureId);
   }
 }
 

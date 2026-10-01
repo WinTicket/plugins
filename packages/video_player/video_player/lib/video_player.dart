@@ -802,6 +802,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// Registers a callback that returns the on-screen rect of a widget
   /// rendering this controller's video. Called automatically by
   /// [VideoPlayer]; app code shouldn't need to call this directly.
+  ///
+  /// 優先順位は登録順で決まり、最後に登録されたものが優先される。
+  /// [VideoPlayer] は mount 時に登録し、親の rebuild では付け替えない。
+  /// そのため、同じ controller を共有する複数の [VideoPlayer] のうち、
+  /// 後から mount されたもの (例: アプリ内 PiP) が優先され、それが
+  /// unmount されると先に mount されたものが候補に戻る。
   void addPipSourceRectProvider(Rect? Function() provider) {
     _pipSourceRectProviders.remove(provider);
     _pipSourceRectProviders.add(provider);
@@ -1037,10 +1043,14 @@ class _VideoPlayerState extends State<VideoPlayer> {
   void didUpdateWidget(VideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_listener);
-    oldWidget.controller.removePipSourceRectProvider(_getSourceRect);
     _textureId = widget.controller.textureId;
     widget.controller.addListener(_listener);
-    widget.controller.addPipSourceRectProvider(_getSourceRect);
+    // 親の rebuild のたびに付け替えると登録順 (= 復帰先の優先順) が入れ替わる
+    // ため、controller が変わった時だけ付け替える。
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removePipSourceRectProvider(_getSourceRect);
+      widget.controller.addPipSourceRectProvider(_getSourceRect);
+    }
   }
 
   @override
