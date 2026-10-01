@@ -4,14 +4,26 @@
 
 package io.flutter.plugins.videoplayer;
 
+import static java.lang.Math.toIntExact;
+
+import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.util.LongSparseArray;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.OnPictureInPictureModeChangedProvider;
+import androidx.core.app.PictureInPictureModeChangedInfo;
+import androidx.core.util.Consumer;
+import com.google.android.exoplayer2.DefaultLoadControl;
 import io.flutter.FlutterInjector;
 import io.flutter.Log;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugins.videoplayer.Messages.AndroidVideoPlayerApi;
 import io.flutter.plugins.videoplayer.Messages.BufferMessage;
 import io.flutter.plugins.videoplayer.Messages.CreateMessage;
@@ -20,28 +32,27 @@ import io.flutter.plugins.videoplayer.Messages.IsPlayingMessage;
 import io.flutter.plugins.videoplayer.Messages.LoopingMessage;
 import io.flutter.plugins.videoplayer.Messages.MaxVideoResolutionMessage;
 import io.flutter.plugins.videoplayer.Messages.MixWithOthersMessage;
+import io.flutter.plugins.videoplayer.Messages.PipStatusMessage;
 import io.flutter.plugins.videoplayer.Messages.PlaybackSpeedMessage;
 import io.flutter.plugins.videoplayer.Messages.PositionMessage;
 import io.flutter.plugins.videoplayer.Messages.TextureMessage;
 import io.flutter.plugins.videoplayer.Messages.VolumeMessage;
 import io.flutter.view.TextureRegistry;
-import static java.lang.Math.toIntExact;
-
-import androidx.annotation.NonNull;
-
-import com.google.android.exoplayer2.DefaultLoadControl;
-
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
-import javax.net.ssl.HttpsURLConnection;
 
 /** Android platform implementation of the VideoPlayerPlugin. */
-public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
+public class VideoPlayerPlugin implements FlutterPlugin, ActivityAware, AndroidVideoPlayerApi {
   private static final String TAG = "VideoPlayerPlugin";
   private final LongSparseArray<VideoPlayer> videoPlayers = new LongSparseArray<>();
   private FlutterState flutterState;
   private VideoPlayerOptions options = new VideoPlayerOptions();
+  @Nullable private Activity activity;
+  // Tracks which player last requested PiP, so events go to the right player.
+  private long lastPipPlayerId = -1;
+  @Nullable private Consumer<PictureInPictureModeChangedInfo> pipModeChangedListener;
+  private final PluginRegistry.UserLeaveHintListener userLeaveHintListener =
+      this::onUserLeaveHint;
+  @Nullable private ActivityPluginBinding userLeaveHintBinding;
 
   /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
   public VideoPlayerPlugin() {}
@@ -66,7 +77,111 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     }
     flutterState.stopListening(binding.getBinaryMessenger());
     flutterState = null;
+    unregisterUserLeaveHintListener();
     onDestroy();
+  }
+
+  // -- ActivityAware implementation --
+
+  @Override
+  public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+    activity = binding.getActivity();
+    setActivityOnAllPlayers(activity);
+    registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivityForConfigChanges() {
+    unregisterUserLeaveHintListener();
+    activity = null;
+    setActivityOnAllPlayers(null);
+  }
+
+  @Override
+  public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+    activity = binding.getActivity();
+    setActivityOnAllPlayers(activity);
+    registerPipModeChangedListener(binding);
+    registerUserLeaveHintListener(binding);
+  }
+
+  @Override
+  public void onDetachedFromActivity() {
+    unregisterUserLeaveHintListener();
+    activity = null;
+    setActivityOnAllPlayers(null);
+    pipModeChangedListener = null;
+  }
+
+  private void setActivityOnAllPlayers(@Nullable Activity activity) {
+    for (int i = 0; i < videoPlayers.size(); i++) {
+      videoPlayers.valueAt(i).setActivity(activity);
+    }
+  }
+
+  // Registers a listener for PiP mode changes. This requires the host Activity to implement
+  // OnPictureInPictureModeChangedProvider (e.g. FlutterFragmentActivity). If the Activity is a
+  // plain FlutterActivity (which extends Activity directly), PiP mode change events will not be
+  // delivered and the Dart side will not receive pipStarted/pipStopped events.
+  private void registerPipModeChangedListener(@NonNull ActivityPluginBinding binding) {
+    Activity boundActivity = binding.getActivity();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        && boundActivity instanceof OnPictureInPictureModeChangedProvider) {
+      OnPictureInPictureModeChangedProvider provider =
+          (OnPictureInPictureModeChangedProvider) boundActivity;
+
+      // Remove existing listener to prevent double registration on config changes.
+      if (pipModeChangedListener != null) {
+        provider.removeOnPictureInPictureModeChangedListener(pipModeChangedListener);
+      }
+
+      pipModeChangedListener =
+          info -> {
+            if (lastPipPlayerId < 0) {
+              return;
+            }
+            VideoPlayer player = videoPlayers.get(lastPipPlayerId);
+            if (player == null || player.videoPlayerCallbacks == null) {
+              return;
+            }
+            if (info.isInPictureInPictureMode()) {
+              player.videoPlayerCallbacks.onPictureInPictureStarted();
+            } else {
+              player.videoPlayerCallbacks.onPictureInPictureStopped();
+              // Auto PiP が有効な場合は lastPipPlayerId を保持する。
+              // リセットすると、2回目以降の auto PiP 進入時に pipStarted イベントが
+              // 送信されず、Dart 側が PiP を認識できなくなる。
+              if (!player.isAutoPipEnabled()) {
+                lastPipPlayerId = -1;
+              }
+            }
+          };
+      provider.addOnPictureInPictureModeChangedListener(pipModeChangedListener);
+    }
+  }
+
+  private void registerUserLeaveHintListener(@NonNull ActivityPluginBinding binding) {
+    unregisterUserLeaveHintListener();
+    if (!VideoPlayer.supportsExplicitAutoPictureInPicture()) {
+      return;
+    }
+    userLeaveHintBinding = binding;
+    binding.addOnUserLeaveHintListener(userLeaveHintListener);
+  }
+
+  private void unregisterUserLeaveHintListener() {
+    if (userLeaveHintBinding != null) {
+      userLeaveHintBinding.removeOnUserLeaveHintListener(userLeaveHintListener);
+    }
+    userLeaveHintBinding = null;
+  }
+
+  private void onUserLeaveHint() {
+    VideoPlayer player = videoPlayers.get(lastPipPlayerId);
+    if (player != null) {
+      player.enterAutoPictureInPicture();
+    }
   }
 
   private void disposeAllPlayers() {
@@ -128,16 +243,26 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
               httpHeaders,
               options);
     }
+    // Provide Activity reference, PiP event callbacks, and PiP tracking for PiP support.
+    player.setActivity(activity);
+    player.videoPlayerCallbacks = new VideoPlayerEventCallbacks(player.eventSink);
+    final long playerId = handle.id();
+    player.setPipRequestHandler(() -> lastPipPlayerId = playerId);
+
     videoPlayers.put(handle.id(), player);
 
-    TextureMessage result = new TextureMessage.Builder().setTextureId(handle.id()).build();
-    return result;
+    return new TextureMessage.Builder().setTextureId(handle.id()).build();
   }
 
   public void dispose(TextureMessage arg) {
-    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    long textureId = arg.getTextureId();
+    VideoPlayer player = videoPlayers.get(textureId);
     player.dispose();
-    videoPlayers.remove(arg.getTextureId());
+    videoPlayers.remove(textureId);
+    // Reset lastPipPlayerId if the disposed player was the PiP player.
+    if (lastPipPlayerId == textureId) {
+      lastPipPlayerId = -1;
+    }
   }
 
   public void setLooping(LoopingMessage arg) {
@@ -238,6 +363,29 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
       int width = rawWidth > Integer.MAX_VALUE ? Integer.MAX_VALUE : toIntExact(rawWidth);
       int height = rawHeight > Integer.MAX_VALUE ? Integer.MAX_VALUE : toIntExact(rawHeight);
       player.setMaxVideoResolution(width, height);
+    }
+  }
+
+  @Override
+  public void stopPictureInPicture(TextureMessage arg) {
+    VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.stopPictureInPicture();
+  }
+
+  @Override
+  public void setAutoPictureInPicture(@NonNull PipStatusMessage msg) {
+    VideoPlayer player = videoPlayers.get(msg.getTextureId());
+    if (player != null) {
+      // Disable auto PiP on all other players to avoid Activity-level params conflict.
+      if (msg.getValue()) {
+        for (int i = 0; i < videoPlayers.size(); i++) {
+          long key = videoPlayers.keyAt(i);
+          if (key != msg.getTextureId() && videoPlayers.valueAt(i).isAutoPipEnabled()) {
+            videoPlayers.valueAt(i).setAutoPictureInPicture(false);
+          }
+        }
+      }
+      player.setAutoPictureInPicture(msg.getValue());
     }
   }
 

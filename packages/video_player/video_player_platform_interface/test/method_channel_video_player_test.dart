@@ -90,6 +90,25 @@ class _ApiLogger implements TestHostVideoPlayerApi {
     log.add('setPlaybackSpeed');
     playbackSpeedMessage = arg;
   }
+
+  @override
+  void setBuffer(BufferMessage arg) {
+    log.add('setBuffer');
+  }
+
+  @override
+  void setMaxVideoResolution(MaxVideoResolutionMessage arg) {
+    log.add('setMaxVideoResolution');
+  }
+
+  @override
+  IsPlayingMessage isPlaying(TextureMessage arg) {
+    log.add('isPlaying');
+    textureMessage = arg;
+    return IsPlayingMessage()
+      ..textureId = arg.textureId
+      ..isPlaying = true;
+  }
 }
 
 void main() {
@@ -317,6 +336,17 @@ void main() {
                     }),
                     (ByteData? data) {});
 
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'isPlayingStateUpdate',
+                      'isPlaying': false,
+                    }),
+                    (ByteData? data) {});
+
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
           } else if (methodCall.method == 'cancel') {
             return const StandardMethodCodec().encodeSuccessEnvelope(null);
@@ -355,6 +385,10 @@ void main() {
                 ]),
             VideoEvent(eventType: VideoEventType.bufferingStart),
             VideoEvent(eventType: VideoEventType.bufferingEnd),
+            VideoEvent(
+              eventType: VideoEventType.isPlayingStateUpdate,
+              isPlaying: false,
+            ),
           ]));
     });
   });

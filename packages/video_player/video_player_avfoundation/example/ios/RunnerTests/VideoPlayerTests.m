@@ -73,8 +73,13 @@
   FLTVideoPlayerPlugin *videoPlayerPlugin =
       (FLTVideoPlayerPlugin *)[[FLTVideoPlayerPlugin alloc] initWithRegistrar:partialRegistrar];
   FLTPositionMessage *message = [FLTPositionMessage makeWithTextureId:@101 position:@0];
-  FlutterError *error;
-  [videoPlayerPlugin seekTo:message error:&error];
+  XCTestExpectation *seekExpectation = [self expectationWithDescription:@"seekTo"];
+  [videoPlayerPlugin seekTo:message
+                 completion:^(FlutterError *error) {
+                   XCTAssertNil(error);
+                   [seekExpectation fulfill];
+                 }];
+  [self waitForExpectationsWithTimeout:30.0 handler:nil];
   OCMVerify([mockTextureRegistry textureFrameAvailable:message.textureId.intValue]);
 }
 
@@ -190,12 +195,17 @@
 
   XCTestExpectation *initializedExpectation = [self expectationWithDescription:@"initialized"];
   __block NSDictionary<NSString *, id> *initializationEvent;
+  __block NSNumber *isPlaying;
+  __block XCTestExpectation *isPlayingExpectation;
   [player onListenWithArguments:nil
                       eventSink:^(NSDictionary<NSString *, id> *event) {
                         if ([event[@"event"] isEqualToString:@"initialized"]) {
                           initializationEvent = event;
                           XCTAssertEqual(event.count, 4);
                           [initializedExpectation fulfill];
+                        } else if ([event[@"event"] isEqualToString:@"isPlayingStateUpdate"]) {
+                          isPlaying = event[@"isPlaying"];
+                          [isPlayingExpectation fulfill];
                         }
                       }];
   [self waitForExpectationsWithTimeout:30.0 handler:nil];
@@ -207,12 +217,16 @@
   XCTAssertEqual(avPlayer.timeControlStatus, AVPlayerTimeControlStatusPaused);
 
   // Change playback speed.
+  isPlayingExpectation = [self expectationWithDescription:@"isPlayingStateUpdate"];
   FLTPlaybackSpeedMessage *playback = [FLTPlaybackSpeedMessage makeWithTextureId:textureId
                                                                            speed:@2];
   [videoPlayerPlugin setPlaybackSpeed:playback error:&error];
+  [self waitForExpectationsWithTimeout:30.0 handler:nil];
   XCTAssertNil(error);
   XCTAssertEqual(avPlayer.rate, 2);
   XCTAssertEqual(avPlayer.timeControlStatus, AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate);
+  XCTAssertEqual(CFGetTypeID((__bridge CFTypeRef)isPlaying), CFBooleanGetTypeID());
+  XCTAssertEqualObjects(isPlaying, @YES);
 
   // Volume
   FLTVolumeMessage *volume = [FLTVolumeMessage makeWithTextureId:textureId volume:@0.1];

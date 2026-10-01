@@ -158,6 +158,28 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.bufferingStart);
         case 'bufferingEnd':
           return VideoEvent(eventType: VideoEventType.bufferingEnd);
+        case 'isPlayingStateUpdate':
+          return VideoEvent(
+            eventType: VideoEventType.isPlayingStateUpdate,
+            isPlaying: map['isPlaying'] as bool,
+          );
+        case 'pipStarted':
+          return VideoEvent(eventType: VideoEventType.pipStarted);
+        case 'pipStopped':
+          return VideoEvent(eventType: VideoEventType.pipStopped);
+        case 'pipRestoreUserInterface':
+          return VideoEvent(
+              eventType: VideoEventType.pipRestoreUserInterface);
+        case 'autoPipChanged':
+          return VideoEvent(
+            eventType: VideoEventType.autoPipChanged,
+            isAutoPipEnabled: map['enabled'] as bool? ?? false,
+          );
+        case 'playbackIntentUpdate':
+          return VideoEvent(
+            eventType: VideoEventType.playbackIntentUpdate,
+            isPlaying: map['isPlaying'] as bool,
+          );
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
@@ -184,10 +206,9 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
-  @override
   Future<void> setMaxVideoResolution(int textureId, int? width, int? height) {
-    final int sanitizedWidth = width != null && width > 0 ? width : 0;
-    final int sanitizedHeight = height != null && height > 0 ? height : 0;
+    final int sanitizedWidth = (width != null && width > 0) ? width : 0;
+    final int sanitizedHeight = (height != null && height > 0) ? height : 0;
     return _api.setMaxVideoResolution(
       MaxVideoResolutionMessage(
         textureId: textureId,
@@ -202,6 +223,42 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
     final IsPlayingMessage isPlayingResponse =
         await _api.isPlaying(TextureMessage(textureId: textureId));
     return isPlayingResponse.isPlaying;
+  }
+
+  @override
+  Future<void> stopPictureInPicture(int textureId, {Rect? sourceRect}) {
+    return _api.stopPictureInPicture(PipStopMessage(
+      textureId: textureId,
+      x: sourceRect?.left,
+      y: sourceRect?.top,
+      width: sourceRect?.width,
+      height: sourceRect?.height,
+    ));
+  }
+
+  @override
+  Future<void> setAutoPictureInPicture(int textureId, bool enabled) {
+    return _api.setAutoPictureInPicture(
+        PipStatusMessage(textureId: textureId, value: enabled));
+  }
+
+  @override
+  Future<void> setRequiresLinearPlayback(
+      int textureId, bool requiresLinearPlayback) {
+    return _api.setRequiresLinearPlayback(
+        PipStatusMessage(textureId: textureId, value: requiresLinearPlayback));
+  }
+
+  @override
+  Future<void> completePipRestoreWithSourceRect(
+      int textureId, double x, double y, double width, double height) {
+    return _api.completePipRestoreWithSourceRect(PipSourceRectMessage(
+      textureId: textureId,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+    ));
   }
 
   EventChannel _eventChannelFor(int textureId) {
