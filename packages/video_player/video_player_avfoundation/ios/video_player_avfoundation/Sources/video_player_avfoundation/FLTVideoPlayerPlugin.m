@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "FLTVideoPlayerPlugin.h"
+#import "./include/video_player_avfoundation/FLTVideoPlayerPlugin.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
 
-#import "AVAssetTrackUtils.h"
-#import "messages.g.h"
+#import "./include/video_player_avfoundation/AVAssetTrackUtils.h"
+#import "./include/video_player_avfoundation/messages.g.h"
 
 #if !__has_feature(objc_arc)
 #error Code Requires ARC.
