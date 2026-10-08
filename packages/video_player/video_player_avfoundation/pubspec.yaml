@@ -5,8 +5,8 @@ issue_tracker: https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+
 version: 2.3.5
 
 environment:
-  sdk: ">=2.14.0 <3.0.0"
-  flutter: ">=2.8.0"
+  sdk: ^3.11.0
+  flutter: ">=3.41.0"
 
 flutter:
   plugin:
@@ -21,7 +21,13 @@ dependencies:
     sdk: flutter
   video_player_platform_interface: ">=4.2.0 <6.0.0"
 
+# The plugin uses the local platform interface: it defines `Buffer`, which the
+# hosted video_player_platform_interface 5.1.4 does not.
+dependency_overrides:
+  video_player_platform_interface:
+    path: ../video_player_platform_interface
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  pigeon: ^2.0.1
+  pigeon: 29.0.4

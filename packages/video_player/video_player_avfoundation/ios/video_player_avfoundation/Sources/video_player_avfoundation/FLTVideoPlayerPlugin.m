@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "FLTVideoPlayerPlugin.h"
+#import "./include/video_player_avfoundation/FLTVideoPlayerPlugin.h"
 
 #import <AVFoundation/AVFoundation.h>
 #import <GLKit/GLKit.h>
 
-#import "AVAssetTrackUtils.h"
-#import "messages.g.h"
+#import "./include/video_player_avfoundation/AVAssetTrackUtils.h"
+#import "./include/video_player_avfoundation/messages.g.h"
 
 #if !__has_feature(objc_arc)
 #error Code Requires ARC.
@@ -541,7 +541,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FLTVideoPlayerPlugin *instance = [[FLTVideoPlayerPlugin alloc] initWithRegistrar:registrar];
   [registrar publish:instance];
-  FLTAVFoundationVideoPlayerApiSetup(registrar.messenger, instance);
+  SetUpFLTAVFoundationVideoPlayerApi(registrar.messenger, instance);
 }
 
 - (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -560,7 +560,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   // TODO(57151): This should be commented out when 57151's fix lands on stable.
   // This is the correct behavior we never did it in the past and the engine
   // doesn't currently support it.
-  // FLTAVFoundationVideoPlayerApiSetup(registrar.messenger, nil);
+  // SetUpFLTAVFoundationVideoPlayerApi(registrar.messenger, nil);
 }
 
 - (FLTTextureMessage *)onPlayerSetup:(FLTVideoPlayer *)player
@@ -574,7 +574,7 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   [eventChannel setStreamHandler:player];
   player.eventChannel = eventChannel;
   self.playersByTextureId[@(textureId)] = player;
-  FLTTextureMessage *result = [FLTTextureMessage makeWithTextureId:@(textureId)];
+  FLTTextureMessage *result = [FLTTextureMessage makeWithTextureId:textureId];
   return result;
 }
 
@@ -614,9 +614,9 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)dispose:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [self.registry unregisterTexture:input.textureId.intValue];
-  [self.playersByTextureId removeObjectForKey:input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  [self.registry unregisterTexture:input.textureId];
+  [self.playersByTextureId removeObjectForKey:@(input.textureId)];
   // If the Flutter contains https://github.com/flutter/engine/pull/12695,
   // the `player` is disposed via `onTextureUnregistered` at the right time.
   // Without https://github.com/flutter/engine/pull/12695, there is no guarantee that the
@@ -636,64 +636,64 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setLooping:(FLTLoopingMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  player.isLooping = input.isLooping.boolValue;
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  player.isLooping = input.isLooping;
 }
 
 - (void)setVolume:(FLTVolumeMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player setVolume:input.volume.doubleValue];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  [player setVolume:input.volume];
 }
 
 - (void)setPlaybackSpeed:(FLTPlaybackSpeedMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player setPlaybackSpeed:input.speed.doubleValue];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  [player setPlaybackSpeed:input.speed];
 }
 
 - (void)play:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   [player play];
 }
 
 - (FLTPositionMessage *)position:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   FLTPositionMessage *result = [FLTPositionMessage makeWithTextureId:input.textureId
-                                                            position:@([player position])];
+                                                            position:[player position]];
   return result;
 }
 
 - (FLTDurationMessage *)duration:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   FLTDurationMessage *result = [FLTDurationMessage makeWithTextureId:input.textureId
-                                                            duration:@([player duration])];
+                                                            duration:[player duration]];
   return result;
 }
 
 - (FLTStartMessage *)start:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   FLTStartMessage *result = [FLTStartMessage makeWithTextureId:input.textureId
-                                                            start:@([player durationStartAt])];
+                                                            start:[player durationStartAt]];
   return result;
 }
 
 - (void)seekTo:(FLTPositionMessage *)msg completion:(void(^)(FlutterError *_Nullable))completion {
-  FLTVideoPlayer *player = self.playersByTextureId[msg.textureId];
-  [player seekTo:msg.position.intValue completionHandler:^(BOOL isFinished) {
+  FLTVideoPlayer *player = self.playersByTextureId[@(msg.textureId)];
+  [player seekTo:(int)msg.position completionHandler:^(BOOL isFinished) {
     if (completion) {
       completion(nil);
     }
   }];
-  [self.registry textureFrameAvailable:msg.textureId.intValue];
+  [self.registry textureFrameAvailable:msg.textureId];
 }
 
 - (void)pause:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   [player pause];
 }
 
 - (void)setMixWithOthers:(FLTMixWithOthersMessage *)input
                    error:(FlutterError *_Nullable __autoreleasing *)error {
-  if (input.mixWithOthers.boolValue) {
+  if (input.mixWithOthers) {
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback
                                      withOptions:AVAudioSessionCategoryOptionMixWithOthers
                                            error:nil];
@@ -703,20 +703,20 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setBuffer:(FLTBufferMessage *)input error:(FlutterError *_Nullable *_Nonnull)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player setBuffer:input.second.doubleValue];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  [player setBuffer:(double)input.second];
 }
 
 - (void)setMaxVideoResolution:(FLTMaxVideoResolutionMessage *)input
                      error:(FlutterError *_Nullable *_Nonnull)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
-  [player setPreferredMaximumResolutionWidth:input.width height:input.height];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
+  [player setPreferredMaximumResolutionWidth:@(input.width) height:@(input.height)];
 }
 
 - (FLTIsPlayingMessage *)isPlaying:(FLTTextureMessage *)input error:(FlutterError **)error {
-  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  FLTVideoPlayer *player = self.playersByTextureId[@(input.textureId)];
   FLTIsPlayingMessage *result = [FLTIsPlayingMessage makeWithTextureId:input.textureId
-                                                            isPlaying:@([player getLatestIsPlaying])];
+                                                            isPlaying:[player getLatestIsPlaying]];
   return result;
 }
 

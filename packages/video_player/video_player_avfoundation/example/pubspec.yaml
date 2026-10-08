@@ -3,8 +3,8 @@ description: Demonstrates how to use the video_player plugin.
 publish_to: none
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
-  flutter: ">=2.8.0"
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
@@ -18,6 +18,12 @@ dependencies:
     path: ../
   video_player_platform_interface: ">=4.2.0 <6.0.0"
 
+# The example uses the local platform interface: it defines `Buffer`, which the
+# hosted video_player_platform_interface 5.1.4 does not.
+dependency_overrides:
+  video_player_platform_interface:
+    path: ../../video_player_platform_interface
+
 dev_dependencies:
   flutter_driver:
     sdk: flutter
@@ -29,6 +35,8 @@ dev_dependencies:
   test: any
 
 flutter:
+  config:
+    enable-swift-package-manager: true
   uses-material-design: true
   assets:
     - assets/flutter-mark-square-64.png

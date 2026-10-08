@@ -1,5 +1,12 @@
 ## NEXT
 
+* Adds Swift Package Manager support (`ios/video_player_avfoundation/Package.swift`).
+  The native sources moved from `ios/Classes` to
+  `ios/video_player_avfoundation/Sources/video_player_avfoundation`.
+* Updates Pigeon to 29.0.4 and regenerates the Dart and Objective-C messages.
+  The Pigeon channel names now include the package name.
+* Raises the minimum iOS version to 13.0 and the minimum Flutter version to 3.41.0
+  (the first version that provides the `FlutterFramework` Swift package).
 * Fixes violations of new analysis option use_named_constants.
 * Fixes avoid_redundant_argument_values lint warnings and minor typos.
 * Ignores unnecessary import warnings in preparation for [upcoming Flutter changes](https://github.com/flutter/flutter/pull/106316).

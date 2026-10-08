@@ -23,6 +23,8 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   VolumeMessage? volumeMessage;
   PlaybackSpeedMessage? playbackSpeedMessage;
   MixWithOthersMessage? mixWithOthersMessage;
+  BufferMessage? bufferMessage;
+  MaxVideoResolutionMessage? maxVideoResolutionMessage;
 
   @override
   TextureMessage create(CreateMessage arg) {
@@ -68,7 +70,40 @@ class _ApiLogger implements TestHostVideoPlayerApi {
   }
 
   @override
-  void seekTo(PositionMessage arg) {
+  DurationMessage duration(TextureMessage arg) {
+    log.add('duration');
+    textureMessage = arg;
+    return DurationMessage(textureId: arg.textureId, duration: 5678);
+  }
+
+  // `start` is called as a side effect of seekTo/getPosition, so it is
+  // intentionally not recorded in [log].
+  @override
+  StartMessage start(TextureMessage arg) {
+    return StartMessage(textureId: arg.textureId, start: 0);
+  }
+
+  @override
+  IsPlayingMessage isPlaying(TextureMessage arg) {
+    log.add('isPlaying');
+    textureMessage = arg;
+    return IsPlayingMessage(textureId: arg.textureId, isPlaying: true);
+  }
+
+  @override
+  void setBuffer(BufferMessage arg) {
+    log.add('setBuffer');
+    bufferMessage = arg;
+  }
+
+  @override
+  void setMaxVideoResolution(MaxVideoResolutionMessage arg) {
+    log.add('setMaxVideoResolution');
+    maxVideoResolutionMessage = arg;
+  }
+
+  @override
+  Future<void> seekTo(PositionMessage arg) async {
     log.add('seekTo');
     positionMessage = arg;
   }
@@ -106,7 +141,7 @@ void main() {
 
     setUp(() {
       log = _ApiLogger();
-      TestHostVideoPlayerApi.setup(log);
+      TestHostVideoPlayerApi.setUp(log);
     });
 
     test('init', () async {
@@ -231,6 +266,38 @@ void main() {
       expect(log.log.last, 'position');
       expect(log.textureMessage?.textureId, 1);
       expect(position, const Duration(milliseconds: 234));
+    });
+
+    test('getDuration', () async {
+      final Duration duration = await player.getDuration(1);
+      expect(log.log.last, 'duration');
+      expect(log.textureMessage?.textureId, 1);
+      expect(duration, const Duration(milliseconds: 5678));
+    });
+
+    test('getIsPlaying', () async {
+      final bool isPlaying = await player.getIsPlaying(1);
+      expect(log.log.last, 'isPlaying');
+      expect(log.textureMessage?.textureId, 1);
+      expect(isPlaying, true);
+    });
+
+    test('setBuffer converts milliseconds to seconds', () async {
+      await player.setBuffer(1, Buffer(maxBufferMs: 5500));
+      expect(log.log.last, 'setBuffer');
+      expect(log.bufferMessage?.textureId, 1);
+      expect(log.bufferMessage?.second, 5);
+    });
+
+    test('setMaxVideoResolution sanitizes null and negative values', () async {
+      await player.setMaxVideoResolution(1, 1280, null);
+      expect(log.log.last, 'setMaxVideoResolution');
+      expect(log.maxVideoResolutionMessage?.width, 1280);
+      expect(log.maxVideoResolutionMessage?.height, 0);
+
+      await player.setMaxVideoResolution(1, -1, 720);
+      expect(log.maxVideoResolutionMessage?.width, 0);
+      expect(log.maxVideoResolutionMessage?.height, 720);
     });
 
     test('videoEventsFor', () async {
