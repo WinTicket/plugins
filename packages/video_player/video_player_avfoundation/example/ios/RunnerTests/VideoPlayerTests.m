@@ -72,10 +72,11 @@
   OCMStub([partialRegistrar textures]).andReturn(mockTextureRegistry);
   FLTVideoPlayerPlugin *videoPlayerPlugin =
       (FLTVideoPlayerPlugin *)[[FLTVideoPlayerPlugin alloc] initWithRegistrar:partialRegistrar];
-  FLTPositionMessage *message = [FLTPositionMessage makeWithTextureId:@101 position:@0];
-  FlutterError *error;
-  [videoPlayerPlugin seekTo:message error:&error];
-  OCMVerify([mockTextureRegistry textureFrameAvailable:message.textureId.intValue]);
+  FLTPositionMessage *message = [FLTPositionMessage makeWithTextureId:101 position:0];
+  [videoPlayerPlugin seekTo:message
+                 completion:^(FlutterError *_Nullable error){
+                 }];
+  OCMVerify([mockTextureRegistry textureFrameAvailable:message.textureId]);
 }
 
 - (void)testDeregistersFromPlayer {
@@ -99,7 +100,7 @@
   FLTTextureMessage *textureMessage = [videoPlayerPlugin create:create error:&error];
   XCTAssertNil(error);
   XCTAssertNotNil(textureMessage);
-  FLTVideoPlayer *player = videoPlayerPlugin.playersByTextureId[textureMessage.textureId];
+  FLTVideoPlayer *player = videoPlayerPlugin.playersByTextureId[@(textureMessage.textureId)];
   XCTAssertNotNil(player);
   AVPlayer *avPlayer = player.player;
 
@@ -184,8 +185,8 @@
                                                  httpHeaders:@{}];
   FLTTextureMessage *textureMessage = [videoPlayerPlugin create:create error:&error];
 
-  NSNumber *textureId = textureMessage.textureId;
-  FLTVideoPlayer *player = videoPlayerPlugin.playersByTextureId[textureId];
+  NSInteger textureId = textureMessage.textureId;
+  FLTVideoPlayer *player = videoPlayerPlugin.playersByTextureId[@(textureId)];
   XCTAssertNotNil(player);
 
   XCTestExpectation *initializedExpectation = [self expectationWithDescription:@"initialized"];
@@ -208,14 +209,14 @@
 
   // Change playback speed.
   FLTPlaybackSpeedMessage *playback = [FLTPlaybackSpeedMessage makeWithTextureId:textureId
-                                                                           speed:@2];
+                                                                           speed:2];
   [videoPlayerPlugin setPlaybackSpeed:playback error:&error];
   XCTAssertNil(error);
   XCTAssertEqual(avPlayer.rate, 2);
   XCTAssertEqual(avPlayer.timeControlStatus, AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate);
 
   // Volume
-  FLTVolumeMessage *volume = [FLTVolumeMessage makeWithTextureId:textureId volume:@0.1];
+  FLTVolumeMessage *volume = [FLTVolumeMessage makeWithTextureId:textureId volume:0.1];
   [videoPlayerPlugin setVolume:volume error:&error];
   XCTAssertNil(error);
   XCTAssertEqual(avPlayer.volume, 0.1f);

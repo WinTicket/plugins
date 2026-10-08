@@ -76,11 +76,14 @@ class _ApiLogger implements TestHostVideoPlayerApi {
     return DurationMessage(textureId: arg.textureId, duration: 5678);
   }
 
+  /// The stream start offset (ms) returned by [start].
+  int startOffset = 0;
+
   // `start` is called as a side effect of seekTo/getPosition, so it is
   // intentionally not recorded in [log].
   @override
   StartMessage start(TextureMessage arg) {
-    return StartMessage(textureId: arg.textureId, start: 0);
+    return StartMessage(textureId: arg.textureId, start: startOffset);
   }
 
   @override
@@ -268,6 +271,18 @@ void main() {
       expect(position, const Duration(milliseconds: 234));
     });
 
+    test('seekTo adds the stream start offset', () async {
+      log.startOffset = 1000;
+      await player.seekTo(1, const Duration(milliseconds: 12345));
+      expect(log.positionMessage?.position, 13345);
+    });
+
+    test('getPosition subtracts the stream start offset', () async {
+      log.startOffset = 100;
+      final Duration position = await player.getPosition(1);
+      expect(position, const Duration(milliseconds: 134));
+    });
+
     test('getDuration', () async {
       final Duration duration = await player.getDuration(1);
       expect(log.log.last, 'duration');
@@ -287,6 +302,23 @@ void main() {
       expect(log.log.last, 'setBuffer');
       expect(log.bufferMessage?.textureId, 1);
       expect(log.bufferMessage?.second, 5);
+    });
+
+    test('setBuffer without maxBufferMs does not call the native side',
+        () async {
+      await player.setBuffer(1, Buffer());
+      expect(log.log, isNot(contains('setBuffer')));
+    });
+
+    test('setMaxVideoResolution treats zero as unlimited', () async {
+      await player.setMaxVideoResolution(1, 0, 0);
+      expect(log.log.last, 'setMaxVideoResolution');
+      expect(log.maxVideoResolutionMessage?.width, 0);
+      expect(log.maxVideoResolutionMessage?.height, 0);
+
+      await player.setMaxVideoResolution(1, null, 480);
+      expect(log.maxVideoResolutionMessage?.width, 0);
+      expect(log.maxVideoResolutionMessage?.height, 480);
     });
 
     test('setMaxVideoResolution sanitizes null and negative values', () async {
