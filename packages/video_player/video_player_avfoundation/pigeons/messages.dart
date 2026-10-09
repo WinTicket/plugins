@@ -7,8 +7,10 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
   dartTestOut: 'test/test_api.dart',
-  objcHeaderOut: 'ios/Classes/messages.g.h',
-  objcSourceOut: 'ios/Classes/messages.g.m',
+  objcHeaderOut:
+      'ios/video_player_avfoundation/Sources/video_player_avfoundation/include/video_player_avfoundation/messages.g.h',
+  objcSourceOut:
+      'ios/video_player_avfoundation/Sources/video_player_avfoundation/messages.g.m',
   objcOptions: ObjcOptions(
     prefix: 'FLT',
   ),

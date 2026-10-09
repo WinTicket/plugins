@@ -3,8 +3,8 @@ description: Demonstrates how to use the video_player plugin.
 publish_to: none
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
-  flutter: ">=2.8.0"
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:
@@ -33,6 +33,8 @@ dev_dependencies:
   test: any
 
 flutter:
+  config:
+    enable-swift-package-manager: true
   uses-material-design: true
   assets:
     - assets/flutter-mark-square-64.png
